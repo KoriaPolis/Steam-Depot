@@ -1,0 +1,22 @@
+{
+  "started_at": 1781244063,
+  "objects_found": 4,
+  "objects_processed": 2,
+  "objects_skipped_already_processed": 0,
+  "bad_submissions": [
+    {
+      "object": "accepted/5c2ef008-cda1-4c56-8985-3bd049a8231b.json",
+      "error": "type is not tool_keys"
+    },
+    {
+      "object": "accepted/e4be64f2-6f99-4903-ab20-58cb3cbcd75e.json",
+      "error": "type is not tool_keys"
+    }
+  ],
+  "items_seen": 2,
+  "new_entries": 0,
+  "keys_filled": 0,
+  "same_key_existing": 2,
+  "metadata_filled": 0,
+  "conflicts": []
+}
