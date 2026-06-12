@@ -7,6 +7,8 @@ on:
         description: "Submission ID that triggered the merge"
         required: false
         type: string
+  schedule:
+    - cron: "*/15 * * * *"
 
 permissions:
   contents: write
