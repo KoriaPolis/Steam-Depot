@@ -18,27 +18,24 @@ ADMIN_TOKEN = (os.environ.get("STEAMIDRA_ADMIN_TOKEN") or "").strip()
 if not API_BASE.startswith(("http://", "https://")):
     raise SystemExit(f"Bad STEAMIDRA_API_BASE: {API_BASE!r}")
 
-# Only merge verifier-created bulk files:
-#   accepted/gha-20260630-180233-28465451350.json
-#
-# This intentionally ignores old manual/single accepted objects:
-#   accepted/3b597d25-3680-4164-adad-a4d43f724778.json
-ACCEPTED_KEY_RE = re.compile(r"^accepted/gha-[0-9]{8}-[0-9]{6}-[0-9]+\.json$")
-
-# First known-good verifier run.
-# Older GHA test runs are ignored.
-DEFAULT_ACCEPTED_MIN_RUN_ID = "gha-20260630-180233-28465451350"
-ACCEPTED_MIN_RUN_ID = (os.environ.get("STEAMIDRA_ACCEPTED_MIN_RUN_ID") or DEFAULT_ACCEPTED_MIN_RUN_ID).strip()
-
-# Optional exact-run mode. Usually leave empty.
-ACCEPTED_ONLY_RUN_ID = (os.environ.get("STEAMIDRA_ACCEPTED_ONLY_RUN_ID") or "").strip()
-
 PROVIDER_FILE = Path("fallback_depotkeys.json")
 PROCESSED_LOG = Path("merged_submission_ids.json")
 REPORT_FILE = Path("submission_merge_report.json")
 
 MAX_ITEMS_PER_ACCEPTED_FILE = 100_000
 MAX_TEXT_LEN = 240
+MAX_ITEM_ID = int((os.environ.get("STEAMIDRA_MAX_ITEM_ID") or "50000000").strip())
+
+# Merge only verifier bulk output:
+#   accepted/gha-YYYYMMDD-HHMMSS-RUNID.json
+# Skip old single-submission UUID accepted files.
+ACCEPTED_KEY_RE = re.compile(r"^accepted/gha-[0-9]{8}-[0-9]{6}-[0-9]+\.json$")
+
+DEFAULT_ACCEPTED_MIN_RUN_ID = "gha-20260630-180233-28465451350"
+ACCEPTED_MIN_RUN_ID = (os.environ.get("STEAMIDRA_ACCEPTED_MIN_RUN_ID") or DEFAULT_ACCEPTED_MIN_RUN_ID).strip()
+
+# Optional one-run recovery mode. Leave empty after recovery.
+ACCEPTED_ONLY_RUN_ID = (os.environ.get("STEAMIDRA_ACCEPTED_ONLY_RUN_ID") or "").strip()
 
 ID_RE = re.compile(r"^[0-9]{1,12}$")
 KEY_RE = re.compile(r"^[a-fA-F0-9]{64}$")
@@ -52,7 +49,7 @@ KIND_ALIASES = {
     "dlc depot": "dlc_depot",
     "dlc-depot": "dlc_depot",
 }
-
+ROOT_KINDS = {"game", "software"}
 ITEM_FIELDS = {"id", "key", "name", "kind", "parent_appid", "parent_name"}
 
 ACCEPTED_LIST_STATS = {
@@ -94,6 +91,14 @@ def as_id(value: Any) -> str:
     return ""
 
 
+def normalize_key(value: Any) -> str:
+    if not isinstance(value, str):
+        return ""
+
+    value = value.strip().lower()
+    return value if KEY_RE.fullmatch(value) else ""
+
+
 def clean_text(value: Any, max_len: int = MAX_TEXT_LEN) -> str:
     if not isinstance(value, str):
         return ""
@@ -124,12 +129,40 @@ def is_allowed_raw_kind(value: Any) -> bool:
     return raw in KIND_VALUES or raw in KIND_ALIASES
 
 
-def normalize_key(value: Any) -> str:
-    if not isinstance(value, str):
+def normalize_run_key(value: str) -> str:
+    value = value.strip()
+
+    if not value:
         return ""
 
-    value = value.strip().lower()
-    return value if KEY_RE.fullmatch(value) else ""
+    if not value.startswith("accepted/"):
+        value = "accepted/" + value
+
+    if not value.endswith(".json"):
+        value += ".json"
+
+    return value
+
+
+def should_merge_accepted_key(key: str) -> bool:
+    ACCEPTED_LIST_STATS["objects_seen_total"] += 1
+
+    if not ACCEPTED_KEY_RE.fullmatch(key):
+        ACCEPTED_LIST_STATS["objects_ignored_not_gha"] += 1
+        return False
+
+    only_key = normalize_run_key(ACCEPTED_ONLY_RUN_ID)
+    if only_key and key != only_key:
+        ACCEPTED_LIST_STATS["objects_ignored_not_exact"] += 1
+        return False
+
+    min_key = normalize_run_key(ACCEPTED_MIN_RUN_ID)
+    if min_key and key < min_key:
+        ACCEPTED_LIST_STATS["objects_ignored_before_min"] += 1
+        return False
+
+    ACCEPTED_LIST_STATS["objects_selected_gha"] += 1
+    return True
 
 
 def validate_item(item: Any) -> tuple[bool, str]:
@@ -143,6 +176,9 @@ def validate_item(item: Any) -> tuple[bool, str]:
     item_id = as_id(item.get("id"))
     if not item_id:
         return False, "bad id"
+
+    if int(item_id) > MAX_ITEM_ID:
+        return False, f"{item_id}: id above max allowed {MAX_ITEM_ID}"
 
     if not normalize_key(item.get("key")):
         return False, f"{item_id}: bad key"
@@ -196,123 +232,148 @@ def validate_submission(body: Any) -> tuple[bool, str]:
     return True, ""
 
 
-def normalize_accepted_run_id(value: str) -> str:
-    value = value.strip()
+def make_provider_entry(item: dict[str, Any]) -> dict[str, Any]:
+    kind = clean_kind(item.get("kind", "unknown"))
 
-    if not value:
-        return ""
+    entry: dict[str, Any] = {
+        "key": normalize_key(item.get("key")),
+        "name": clean_text(item.get("name", "")),
+        "kind": kind,
+    }
 
-    if not value.startswith("accepted/"):
-        value = "accepted/" + value
+    if kind not in ROOT_KINDS:
+        parent_appid = as_id(item.get("parent_appid", ""))
+        parent_name = clean_text(item.get("parent_name", ""))
 
-    if not value.endswith(".json"):
-        value += ".json"
+        if parent_appid:
+            entry["parent_appid"] = parent_appid
 
-    return value
+        if parent_name:
+            entry["parent_name"] = parent_name
 
-
-def should_merge_accepted_key(key: str) -> bool:
-    ACCEPTED_LIST_STATS["objects_seen_total"] += 1
-
-    if not ACCEPTED_KEY_RE.fullmatch(key):
-        ACCEPTED_LIST_STATS["objects_ignored_not_gha"] += 1
-        return False
-
-    exact_key = normalize_accepted_run_id(ACCEPTED_ONLY_RUN_ID)
-    if exact_key and key != exact_key:
-        ACCEPTED_LIST_STATS["objects_ignored_not_exact"] += 1
-        return False
-
-    min_key = normalize_accepted_run_id(ACCEPTED_MIN_RUN_ID)
-    if min_key and key < min_key:
-        ACCEPTED_LIST_STATS["objects_ignored_before_min"] += 1
-        return False
-
-    ACCEPTED_LIST_STATS["objects_selected_gha"] += 1
-    return True
+    return entry
 
 
-def extract_existing_key(value: Any) -> str:
-    # Existing public provider formats are treated as read-only.
-    # We only try to detect their key; we do not rewrite the whole object.
+def existing_key(value: Any) -> str:
     if isinstance(value, str):
         return normalize_key(value)
 
     if isinstance(value, dict):
-        for field in ("key", "depotkey", "depot_key", "value"):
-            key = normalize_key(value.get(field))
-            if key:
-                return key
-
-        # Last-resort scan for a 64-hex string inside the object.
-        # This is detection only, not rewriting.
-        for nested_value in value.values():
-            key = normalize_key(nested_value)
-            if key:
-                return key
+        return normalize_key(value.get("key"))
 
     return ""
 
 
-def can_replace_empty_existing(value: Any) -> bool:
-    # Only replace truly empty placeholders.
-    # Unknown non-empty formats are preserved instead of being deleted or rewritten.
+def is_empty_placeholder(value: Any) -> bool:
     if value is None:
         return True
-
     if value == "":
         return True
-
     if value == {}:
         return True
-
     if value == []:
+        return True
+    if isinstance(value, dict) and not normalize_key(value.get("key")):
         return True
 
     return False
 
 
+def fill_existing_object(existing: dict[str, Any], item: dict[str, Any]) -> bool:
+    changed = False
+
+    new_key = normalize_key(item.get("key"))
+    if new_key and not normalize_key(existing.get("key")):
+        existing["key"] = new_key
+        changed = True
+
+    # Only fill blank metadata. Do not overwrite existing names/kinds/parents.
+    if not clean_text(existing.get("name", "")):
+        name = clean_text(item.get("name", ""))
+        if name:
+            existing["name"] = name
+            changed = True
+
+    existing_kind = clean_kind(existing.get("kind", "unknown"))
+    if existing_kind == "unknown":
+        kind = clean_kind(item.get("kind", "unknown"))
+        if kind != "unknown":
+            existing["kind"] = kind
+            existing_kind = kind
+            changed = True
+
+    if existing_kind in ROOT_KINDS:
+        # Root rows must not have parent fields.
+        if "parent_appid" in existing:
+            existing.pop("parent_appid", None)
+            changed = True
+        if "parent_name" in existing:
+            existing.pop("parent_name", None)
+            changed = True
+    else:
+        parent_appid = as_id(item.get("parent_appid", ""))
+        parent_name = clean_text(item.get("parent_name", ""))
+
+        if parent_appid and not as_id(str(existing.get("parent_appid", ""))):
+            existing["parent_appid"] = parent_appid
+            changed = True
+
+        if parent_name and not clean_text(existing.get("parent_name", "")):
+            existing["parent_name"] = parent_name
+            changed = True
+
+    return changed
+
+
 def merge_item(provider: dict[str, Any], item: dict[str, Any], report: dict[str, Any]) -> bool:
     item_id = as_id(item.get("id"))
-    incoming_key = normalize_key(item.get("key"))
-    incoming_name = clean_text(item.get("name", ""))
-    incoming_kind = clean_kind(item.get("kind", "unknown"))
+    item_key = normalize_key(item.get("key"))
 
-    if not item_id or not incoming_key:
+    if not item_id or not item_key:
         report["bad_items_skipped"] += 1
         return False
 
+    if int(item_id) > MAX_ITEM_ID:
+        report["high_id_items_skipped"] += 1
+        return False
+
     if item_id not in provider:
-        provider[item_id] = incoming_key
+        provider[item_id] = make_provider_entry(item)
         report["new_entries"] += 1
         return True
 
     raw_existing = provider.get(item_id)
-    old_key = extract_existing_key(raw_existing)
+    old_key = existing_key(raw_existing)
 
     if old_key:
-        if old_key == incoming_key:
+        if old_key == item_key:
             report["same_key_existing"] += 1
         else:
-            report["conflicts"].append(
-                {
-                    "id": item_id,
-                    "existing": old_key,
-                    "new": incoming_key,
-                    "name": incoming_name,
-                    "kind": incoming_kind,
-                }
-            )
+            report["conflicts"].append({
+                "id": item_id,
+                "existing": old_key,
+                "new": item_key,
+                "name": clean_text(item.get("name", "")),
+                "kind": clean_kind(item.get("kind", "unknown")),
+            })
 
-        # Critical safety: preserve existing entry exactly.
+        # Existing keyed entry is preserved exactly. No rewrite.
         return False
 
-    if can_replace_empty_existing(raw_existing):
-        provider[item_id] = incoming_key
+    if isinstance(raw_existing, dict):
+        changed = fill_existing_object(raw_existing, item)
+        if changed:
+            report["keys_filled"] += 1
+        else:
+            report["empty_existing_unchanged"] += 1
+        return changed
+
+    if is_empty_placeholder(raw_existing):
+        provider[item_id] = make_provider_entry(item)
         report["keys_filled"] += 1
         return True
 
-    # Unknown existing shape. Preserve it. Do not delete it. Do not rewrite it.
+    # Unknown non-empty shape. Preserve it.
     report["existing_unrecognized_preserved"] += 1
     return False
 
@@ -361,13 +422,6 @@ def list_accepted() -> list[str]:
 
 
 def unwrap_submission_response(data: Any) -> Any:
-    # Supports both styles:
-    #   raw accepted JSON:
-    #     {"tool_version":"...", "type":"tool_keys", "items":[...]}
-    #   wrapped admin JSON:
-    #     {"ok":true, "submission": {...}}
-    #     {"ok":true, "body": {...}}
-    #     {"ok":true, "data": {...}}
     if isinstance(data, dict) and data.get("ok") is True:
         for key in ("submission", "body", "data"):
             nested = data.get(key)
@@ -407,6 +461,7 @@ def main() -> None:
         "api_base": API_BASE,
         "accepted_min_run_id": ACCEPTED_MIN_RUN_ID,
         "accepted_only_run_id": ACCEPTED_ONLY_RUN_ID,
+        "max_item_id": MAX_ITEM_ID,
         "objects_seen_total": ACCEPTED_LIST_STATS["objects_seen_total"],
         "objects_selected_gha": ACCEPTED_LIST_STATS["objects_selected_gha"],
         "objects_ignored_not_gha": ACCEPTED_LIST_STATS["objects_ignored_not_gha"],
@@ -420,11 +475,14 @@ def main() -> None:
         "new_entries": 0,
         "keys_filled": 0,
         "same_key_existing": 0,
-        "existing_unrecognized_preserved": 0,
-        "bad_items_skipped": 0,
         "conflicts": [],
+        "bad_items_skipped": 0,
+        "high_id_items_skipped": 0,
+        "empty_existing_unchanged": 0,
+        "existing_unrecognized_preserved": 0,
         "provider_count_before": provider_count_before,
         "provider_count_after": provider_count_before,
+        "provider_changed": False,
     }
 
     newly_processed: list[str] = []
@@ -454,14 +512,13 @@ def main() -> None:
             changed = merge_item(provider, item, report)
             provider_changed = provider_changed or changed
 
-    provider_count_after = len(provider)
-    report["provider_count_after"] = provider_count_after
+    report["provider_count_after"] = len(provider)
+    report["provider_changed"] = provider_changed
 
-    # Hard guard: this script must never shrink the provider.
-    if provider_count_after < provider_count_before:
+    if report["provider_count_after"] < report["provider_count_before"]:
         raise SystemExit(
-            f"Safety stop: provider entry count decreased from "
-            f"{provider_count_before} to {provider_count_after}."
+            f"Safety stop: provider count decreased from "
+            f"{report['provider_count_before']} to {report['provider_count_after']}."
         )
 
     print("Merge summary")
@@ -469,6 +526,7 @@ def main() -> None:
         "api_base",
         "accepted_min_run_id",
         "accepted_only_run_id",
+        "max_item_id",
         "objects_seen_total",
         "objects_selected_gha",
         "objects_ignored_not_gha",
@@ -481,16 +539,18 @@ def main() -> None:
         "new_entries",
         "keys_filled",
         "same_key_existing",
-        "existing_unrecognized_preserved",
         "bad_items_skipped",
+        "high_id_items_skipped",
+        "empty_existing_unchanged",
+        "existing_unrecognized_preserved",
         "provider_count_before",
         "provider_count_after",
+        "provider_changed",
     ):
         print(f"{key}: {report[key]}")
 
     print(f"conflicts: {len(report['conflicts'])}")
     print(f"bad_submissions: {len(report['bad_submissions'])}")
-    print(f"provider_changed: {provider_changed}")
 
     if report["conflicts"]:
         print("Conflicts were NOT overwritten. First 20:")
@@ -507,14 +567,14 @@ def main() -> None:
         for bad in report["bad_submissions"][:20]:
             print(f"  {bad.get('object')}: {bad.get('error')}")
 
+    if provider_changed:
+        save_json(PROVIDER_FILE, provider)
+
     if newly_processed:
         processed.extend(newly_processed)
         save_json(PROCESSED_LOG, sorted(set(processed)))
 
-    if provider_changed:
-        save_json(PROVIDER_FILE, provider)
-
-    if newly_processed or provider_changed:
+    if provider_changed or newly_processed:
         save_json(REPORT_FILE, report)
 
     print("Done.")

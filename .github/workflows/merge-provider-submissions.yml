@@ -48,17 +48,52 @@ jobs:
           STEAMIDRA_API_BASE: https://stea-provider-api.steamidra.workers.dev
           STEAMIDRA_ADMIN_TOKEN: ${{ secrets.STEAMIDRA_ADMIN_TOKEN }}
 
-          # This is NOT one-file-only.
-          # It means: merge this GHA verifier result and every newer GHA verifier result.
-          # Old UUID accepted/*.json files are ignored by the Python script.
-          # Old broken GHA test runs before this are ignored too.
+          # First known-good verifier bulk run.
+          # Older broken GHA test runs are ignored.
           STEAMIDRA_ACCEPTED_MIN_RUN_ID: gha-20260630-180233-28465451350
 
-          # Keep fallback_depotkeys.json in the old simple format:
-          # "depotid": "64hexkey"
-          STEAMIDRA_OUTPUT_LEGACY_STRINGS: "1"
+          # RECOVERY MODE:
+          # For the first fixed run, merge only this known-good file.
+          # After it succeeds, remove this line so future GHA files can merge too.
+          STEAMIDRA_ACCEPTED_ONLY_RUN_ID: gha-20260630-180233-28465451350
+
+          # Blocks fake/test IDs like 999999996 and 999999997.
+          STEAMIDRA_MAX_ITEM_ID: "50000000"
         run: |
           python .github/scripts/merge_accepted_from_worker.py
+
+      - name: Safety check provider diff
+        run: |
+          set -e
+
+          diff_line="$(git diff --numstat -- fallback_depotkeys.json || true)"
+          echo "fallback_depotkeys.json numstat: ${diff_line}"
+
+          if [ -z "${diff_line}" ]; then
+            echo "No fallback_depotkeys.json changes."
+            exit 0
+          fi
+
+          additions="$(echo "${diff_line}" | awk '{print $1}')"
+          deletions="$(echo "${diff_line}" | awk '{print $2}')"
+
+          if [ "${additions}" = "-" ] || [ "${deletions}" = "-" ]; then
+            echo "Safety stop: binary or unreadable diff for fallback_depotkeys.json."
+            exit 1
+          fi
+
+          echo "fallback_depotkeys.json additions: ${additions}"
+          echo "fallback_depotkeys.json deletions: ${deletions}"
+
+          if [ "${deletions}" -gt 5000 ]; then
+            echo "Safety stop: fallback_depotkeys.json has too many deletions."
+            exit 1
+          fi
+
+          if [ "${additions}" -gt 20000 ]; then
+            echo "Safety stop: fallback_depotkeys.json has too many additions."
+            exit 1
+          fi
 
       - name: Commit provider changes
         run: |
