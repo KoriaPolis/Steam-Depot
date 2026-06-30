@@ -25,24 +25,13 @@ if not API_BASE.startswith(("http://", "https://")):
 #   accepted/3b597d25-3680-4164-adad-a4d43f724778.json
 ACCEPTED_KEY_RE = re.compile(r"^accepted/gha-[0-9]{8}-[0-9]{6}-[0-9]+\.json$")
 
-# Default cutoff skips old broken test GHA files before the good fixed run.
-# Override in workflow with STEAMIDRA_ACCEPTED_MIN_RUN_ID if needed.
+# First known-good verifier run.
+# Older GHA test runs are ignored.
 DEFAULT_ACCEPTED_MIN_RUN_ID = "gha-20260630-180233-28465451350"
 ACCEPTED_MIN_RUN_ID = (os.environ.get("STEAMIDRA_ACCEPTED_MIN_RUN_ID") or DEFAULT_ACCEPTED_MIN_RUN_ID).strip()
 
-# Optional exact run mode. Usually leave empty.
-# Example:
-#   STEAMIDRA_ACCEPTED_ONLY_RUN_ID=gha-20260630-180233-28465451350
+# Optional exact-run mode. Usually leave empty.
 ACCEPTED_ONLY_RUN_ID = (os.environ.get("STEAMIDRA_ACCEPTED_ONLY_RUN_ID") or "").strip()
-
-# Keep existing provider format safe.
-# fallback_depotkeys.json historically stores:
-#   "123": "64hexkey"
-#
-# Default keeps new entries as strings too, so consumers expecting the old format do not break.
-# Set STEAMIDRA_OUTPUT_LEGACY_STRINGS=0 only if you intentionally want object values.
-OUTPUT_LEGACY_STRINGS = (os.environ.get("STEAMIDRA_OUTPUT_LEGACY_STRINGS") or "1").strip() != "0"
-
 
 PROVIDER_FILE = Path("fallback_depotkeys.json")
 PROCESSED_LOG = Path("merged_submission_ids.json")
@@ -64,7 +53,6 @@ KIND_ALIASES = {
     "dlc-depot": "dlc_depot",
 }
 
-ROOT_KINDS = {"game", "software"}
 ITEM_FIELDS = {"id", "key", "name", "kind", "parent_appid", "parent_name"}
 
 ACCEPTED_LIST_STATS = {
@@ -208,193 +196,6 @@ def validate_submission(body: Any) -> tuple[bool, str]:
     return True, ""
 
 
-def normalize_entry(entry: Any) -> dict[str, Any]:
-    # Supports both provider formats:
-    #   old: "123": "64hexkey"
-    #   new: "123": {"key":"64hexkey", "name":"...", "kind":"..."}
-    if isinstance(entry, str):
-        return {
-            "key": normalize_key(entry),
-            "name": "",
-            "kind": "unknown",
-        }
-
-    if not isinstance(entry, dict):
-        entry = {}
-
-    out: dict[str, Any] = {
-        "key": normalize_key(entry.get("key", "")),
-        "name": clean_text(entry.get("name", "")),
-        "kind": clean_kind(entry.get("kind", "unknown")),
-    }
-
-    # Final provider rule:
-    # root game/software rows must never contain parent_appid or parent_name.
-    if out["kind"] in ROOT_KINDS:
-        return out
-
-    parent_appid = as_id(entry.get("parent_appid", ""))
-    parent_name = clean_text(entry.get("parent_name", ""))
-
-    if parent_appid:
-        out["parent_appid"] = parent_appid
-
-    if parent_name:
-        out["parent_name"] = parent_name
-
-    return out
-
-
-def make_incoming_entry(item: dict[str, Any]) -> dict[str, Any]:
-    incoming_kind = clean_kind(item.get("kind", "unknown"))
-
-    entry: dict[str, Any] = {
-        "key": normalize_key(item.get("key")),
-        "name": clean_text(item.get("name", "")),
-        "kind": incoming_kind,
-    }
-
-    if incoming_kind not in ROOT_KINDS:
-        parent_appid = as_id(item.get("parent_appid", ""))
-        parent_name = clean_text(item.get("parent_name", ""))
-
-        if parent_appid:
-            entry["parent_appid"] = parent_appid
-
-        if parent_name:
-            entry["parent_name"] = parent_name
-
-    return normalize_entry(entry)
-
-
-def provider_value_for_new_entry(entry: dict[str, Any]) -> Any:
-    if OUTPUT_LEGACY_STRINGS:
-        return entry["key"]
-
-    return normalize_entry(entry)
-
-
-def merge_item(provider: dict[str, Any], item: dict[str, Any], report: dict[str, Any]) -> None:
-    item_id = as_id(item.get("id"))
-    incoming_entry = make_incoming_entry(item)
-    incoming_key = incoming_entry["key"]
-    incoming_name = incoming_entry.get("name", "")
-    incoming_kind = incoming_entry.get("kind", "unknown")
-    incoming_parent_appid = incoming_entry.get("parent_appid", "")
-    incoming_parent_name = incoming_entry.get("parent_name", "")
-
-    if item_id not in provider:
-        provider[item_id] = provider_value_for_new_entry(incoming_entry)
-        report["new_entries"] += 1
-        return
-
-    raw_existing = provider.get(item_id)
-    entry = normalize_entry(raw_existing)
-    old_key = normalize_key(entry.get("key", ""))
-
-    if not old_key:
-        if isinstance(raw_existing, str) or OUTPUT_LEGACY_STRINGS:
-            provider[item_id] = incoming_key
-        else:
-            entry["key"] = incoming_key
-            provider[item_id] = normalize_entry(entry)
-
-        report["keys_filled"] += 1
-        return
-
-    if old_key == incoming_key:
-        report["same_key_existing"] += 1
-
-        # Critical safety:
-        # If the repo already has legacy string format, do NOT convert it to object format.
-        # This avoids massive noisy diffs and keeps old consumers working.
-        if isinstance(raw_existing, str):
-            return
-
-        # Existing object entries may receive better metadata.
-        if incoming_name and entry.get("name") != incoming_name:
-            entry["name"] = incoming_name
-            report["metadata_filled"] += 1
-
-        if incoming_kind != "unknown" and entry.get("kind", "unknown") != incoming_kind:
-            entry["kind"] = incoming_kind
-            report["metadata_filled"] += 1
-
-        if entry.get("kind") in ROOT_KINDS:
-            removed_parent = False
-
-            if "parent_appid" in entry:
-                entry.pop("parent_appid", None)
-                removed_parent = True
-
-            if "parent_name" in entry:
-                entry.pop("parent_name", None)
-                removed_parent = True
-
-            if removed_parent:
-                report["metadata_filled"] += 1
-        else:
-            if incoming_parent_appid and entry.get("parent_appid") != incoming_parent_appid:
-                entry["parent_appid"] = incoming_parent_appid
-                report["metadata_filled"] += 1
-
-            if incoming_parent_name and entry.get("parent_name") != incoming_parent_name:
-                entry["parent_name"] = incoming_parent_name
-                report["metadata_filled"] += 1
-
-        provider[item_id] = normalize_entry(entry)
-        return
-
-    report["conflicts"].append(
-        {
-            "id": item_id,
-            "existing": old_key,
-            "new": incoming_key,
-            "name": incoming_name,
-        }
-    )
-
-    # Preserve old entry on conflict. Never overwrite known existing key with a different key.
-    provider[item_id] = raw_existing
-
-
-def sorted_provider(provider: dict[str, Any], report: dict[str, Any] | None = None) -> dict[str, Any]:
-    out: dict[str, Any] = {}
-
-    for item_id in sorted(provider.keys(), key=lambda x: int(x) if str(x).isdigit() else 10**18):
-        sid = as_id(item_id)
-        if not sid:
-            if report is not None:
-                report["invalid_existing_entries_skipped"] += 1
-            continue
-
-        raw_entry = provider[item_id]
-
-        # Preserve old legacy provider format instead of deleting or rewriting everything.
-        if isinstance(raw_entry, str):
-            key = normalize_key(raw_entry)
-            if not key:
-                if report is not None:
-                    report["invalid_existing_entries_skipped"] += 1
-                continue
-
-            out[sid] = key
-            continue
-
-        entry = normalize_entry(raw_entry)
-        if not entry.get("key"):
-            if report is not None:
-                report["invalid_existing_entries_skipped"] += 1
-            continue
-
-        if OUTPUT_LEGACY_STRINGS:
-            out[sid] = entry["key"]
-        else:
-            out[sid] = entry
-
-    return out
-
-
 def normalize_accepted_run_id(value: str) -> str:
     value = value.strip()
 
@@ -429,6 +230,91 @@ def should_merge_accepted_key(key: str) -> bool:
 
     ACCEPTED_LIST_STATS["objects_selected_gha"] += 1
     return True
+
+
+def extract_existing_key(value: Any) -> str:
+    # Existing public provider formats are treated as read-only.
+    # We only try to detect their key; we do not rewrite the whole object.
+    if isinstance(value, str):
+        return normalize_key(value)
+
+    if isinstance(value, dict):
+        for field in ("key", "depotkey", "depot_key", "value"):
+            key = normalize_key(value.get(field))
+            if key:
+                return key
+
+        # Last-resort scan for a 64-hex string inside the object.
+        # This is detection only, not rewriting.
+        for nested_value in value.values():
+            key = normalize_key(nested_value)
+            if key:
+                return key
+
+    return ""
+
+
+def can_replace_empty_existing(value: Any) -> bool:
+    # Only replace truly empty placeholders.
+    # Unknown non-empty formats are preserved instead of being deleted or rewritten.
+    if value is None:
+        return True
+
+    if value == "":
+        return True
+
+    if value == {}:
+        return True
+
+    if value == []:
+        return True
+
+    return False
+
+
+def merge_item(provider: dict[str, Any], item: dict[str, Any], report: dict[str, Any]) -> bool:
+    item_id = as_id(item.get("id"))
+    incoming_key = normalize_key(item.get("key"))
+    incoming_name = clean_text(item.get("name", ""))
+    incoming_kind = clean_kind(item.get("kind", "unknown"))
+
+    if not item_id or not incoming_key:
+        report["bad_items_skipped"] += 1
+        return False
+
+    if item_id not in provider:
+        provider[item_id] = incoming_key
+        report["new_entries"] += 1
+        return True
+
+    raw_existing = provider.get(item_id)
+    old_key = extract_existing_key(raw_existing)
+
+    if old_key:
+        if old_key == incoming_key:
+            report["same_key_existing"] += 1
+        else:
+            report["conflicts"].append(
+                {
+                    "id": item_id,
+                    "existing": old_key,
+                    "new": incoming_key,
+                    "name": incoming_name,
+                    "kind": incoming_kind,
+                }
+            )
+
+        # Critical safety: preserve existing entry exactly.
+        return False
+
+    if can_replace_empty_existing(raw_existing):
+        provider[item_id] = incoming_key
+        report["keys_filled"] += 1
+        return True
+
+    # Unknown existing shape. Preserve it. Do not delete it. Do not rewrite it.
+    report["existing_unrecognized_preserved"] += 1
+    return False
 
 
 def api_get_json(url: str) -> Any:
@@ -507,6 +393,8 @@ def main() -> None:
     if not isinstance(provider, dict):
         raise SystemExit("fallback_depotkeys.json root is not an object.")
 
+    provider_count_before = len(provider)
+
     processed = load_json(PROCESSED_LOG, [])
     if not isinstance(processed, list):
         processed = []
@@ -519,7 +407,6 @@ def main() -> None:
         "api_base": API_BASE,
         "accepted_min_run_id": ACCEPTED_MIN_RUN_ID,
         "accepted_only_run_id": ACCEPTED_ONLY_RUN_ID,
-        "output_legacy_strings": OUTPUT_LEGACY_STRINGS,
         "objects_seen_total": ACCEPTED_LIST_STATS["objects_seen_total"],
         "objects_selected_gha": ACCEPTED_LIST_STATS["objects_selected_gha"],
         "objects_ignored_not_gha": ACCEPTED_LIST_STATS["objects_ignored_not_gha"],
@@ -533,12 +420,15 @@ def main() -> None:
         "new_entries": 0,
         "keys_filled": 0,
         "same_key_existing": 0,
-        "metadata_filled": 0,
-        "invalid_existing_entries_skipped": 0,
+        "existing_unrecognized_preserved": 0,
+        "bad_items_skipped": 0,
         "conflicts": [],
+        "provider_count_before": provider_count_before,
+        "provider_count_after": provider_count_before,
     }
 
     newly_processed: list[str] = []
+    provider_changed = False
 
     for key in object_keys:
         if key in processed_set:
@@ -561,16 +451,24 @@ def main() -> None:
 
         for item in body["items"]:
             report["items_seen"] += 1
-            merge_item(provider, item, report)
+            changed = merge_item(provider, item, report)
+            provider_changed = provider_changed or changed
 
-    provider = sorted_provider(provider, report)
+    provider_count_after = len(provider)
+    report["provider_count_after"] = provider_count_after
+
+    # Hard guard: this script must never shrink the provider.
+    if provider_count_after < provider_count_before:
+        raise SystemExit(
+            f"Safety stop: provider entry count decreased from "
+            f"{provider_count_before} to {provider_count_after}."
+        )
 
     print("Merge summary")
     for key in (
         "api_base",
         "accepted_min_run_id",
         "accepted_only_run_id",
-        "output_legacy_strings",
         "objects_seen_total",
         "objects_selected_gha",
         "objects_ignored_not_gha",
@@ -583,13 +481,16 @@ def main() -> None:
         "new_entries",
         "keys_filled",
         "same_key_existing",
-        "metadata_filled",
-        "invalid_existing_entries_skipped",
+        "existing_unrecognized_preserved",
+        "bad_items_skipped",
+        "provider_count_before",
+        "provider_count_after",
     ):
         print(f"{key}: {report[key]}")
 
     print(f"conflicts: {len(report['conflicts'])}")
     print(f"bad_submissions: {len(report['bad_submissions'])}")
+    print(f"provider_changed: {provider_changed}")
 
     if report["conflicts"]:
         print("Conflicts were NOT overwritten. First 20:")
@@ -606,13 +507,15 @@ def main() -> None:
         for bad in report["bad_submissions"][:20]:
             print(f"  {bad.get('object')}: {bad.get('error')}")
 
-    save_json(REPORT_FILE, report)
-
     if newly_processed:
         processed.extend(newly_processed)
         save_json(PROCESSED_LOG, sorted(set(processed)))
 
-    save_json(PROVIDER_FILE, provider)
+    if provider_changed:
+        save_json(PROVIDER_FILE, provider)
+
+    if newly_processed or provider_changed:
+        save_json(REPORT_FILE, report)
 
     print("Done.")
 
