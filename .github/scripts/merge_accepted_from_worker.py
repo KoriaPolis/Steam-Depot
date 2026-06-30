@@ -303,8 +303,8 @@ def merge_item(provider: dict[str, Any], item: dict[str, Any], report: dict[str,
     provider[item_id] = normalize_entry(entry)
 
 
-def sorted_provider(provider: dict[str, dict[str, Any]], report: dict[str, Any] | None = None) -> dict[str, dict[str, Any]]:
-    out: dict[str, dict[str, Any]] = {}
+def sorted_provider(provider: dict[str, Any], report: dict[str, Any] | None = None) -> dict[str, Any]:
+    out: dict[str, Any] = {}
 
     for item_id in sorted(provider.keys(), key=lambda x: int(x) if str(x).isdigit() else 10**18):
         sid = as_id(item_id)
@@ -313,7 +313,20 @@ def sorted_provider(provider: dict[str, dict[str, Any]], report: dict[str, Any] 
                 report["invalid_existing_entries_skipped"] += 1
             continue
 
-        entry = normalize_entry(provider[item_id])
+        raw_entry = provider[item_id]
+
+        # Preserve old legacy provider format instead of deleting or rewriting everything.
+        if isinstance(raw_entry, str):
+            key = normalize_key(raw_entry)
+            if not key:
+                if report is not None:
+                    report["invalid_existing_entries_skipped"] += 1
+                continue
+
+            out[sid] = key
+            continue
+
+        entry = normalize_entry(raw_entry)
         if not entry.get("key"):
             if report is not None:
                 report["invalid_existing_entries_skipped"] += 1
