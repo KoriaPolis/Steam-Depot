@@ -1,0 +1,23 @@
+{
+  "started_at": 1782845807,
+  "api_base": "https://stea-provider-api.steamidra.workers.dev",
+  "accepted_min_run_id": "gha-20260630-180233-28465451350",
+  "accepted_only_run_id": "",
+  "output_legacy_strings": true,
+  "objects_seen_total": 145,
+  "objects_selected_gha": 2,
+  "objects_ignored_not_gha": 139,
+  "objects_ignored_before_min": 4,
+  "objects_ignored_not_exact": 0,
+  "objects_found": 2,
+  "objects_processed": 2,
+  "objects_skipped_already_processed": 0,
+  "bad_submissions": [],
+  "items_seen": 838,
+  "new_entries": 7,
+  "keys_filled": 6,
+  "same_key_existing": 825,
+  "metadata_filled": 1231,
+  "invalid_existing_entries_skipped": 183699,
+  "conflicts": []
+}
