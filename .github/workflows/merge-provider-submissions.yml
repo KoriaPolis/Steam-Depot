@@ -7,6 +7,11 @@ on:
         description: "Submission ID that triggered the merge"
         required: false
         type: string
+
+  repository_dispatch:
+    types:
+      - merge-provider-submissions
+
   schedule:
     - cron: "*/15 * * * *"
 
@@ -40,6 +45,7 @@ jobs:
 
       - name: Merge accepted Cloudflare submissions
         env:
+          STEAMIDRA_API_BASE: https://stea-provider-api.steamidra.workers.dev
           STEAMIDRA_ADMIN_TOKEN: ${{ secrets.STEAMIDRA_ADMIN_TOKEN }}
         run: |
           python .github/scripts/merge_accepted_from_worker.py
@@ -49,7 +55,7 @@ jobs:
           git config user.name "SteaMidra Provider Bot"
           git config user.email "actions@users.noreply.github.com"
 
-          git add fallback_depotkeys.json merged_submission_ids.json
+          git add -A
 
           if git diff --cached --quiet; then
             echo "No provider changes to commit."
