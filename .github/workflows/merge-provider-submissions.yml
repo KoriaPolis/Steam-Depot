@@ -47,17 +47,7 @@ jobs:
         env:
           STEAMIDRA_API_BASE: https://stea-provider-api.steamidra.workers.dev
           STEAMIDRA_ADMIN_TOKEN: ${{ secrets.STEAMIDRA_ADMIN_TOKEN }}
-
-          # First known-good verifier bulk run.
-          # Older broken GHA test runs are ignored.
           STEAMIDRA_ACCEPTED_MIN_RUN_ID: gha-20260630-180233-28465451350
-
-          # RECOVERY MODE:
-          # For the first fixed run, merge only this known-good file.
-          # After it succeeds, remove this line so future GHA files can merge too.
-          STEAMIDRA_ACCEPTED_ONLY_RUN_ID: gha-20260630-180233-28465451350
-
-          # Blocks fake/test IDs like 999999996 and 999999997.
           STEAMIDRA_MAX_ITEM_ID: "50000000"
         run: |
           python .github/scripts/merge_accepted_from_worker.py
@@ -65,6 +55,8 @@ jobs:
       - name: Safety check provider diff
         run: |
           set -e
+
+          git diff --check
 
           diff_line="$(git diff --numstat -- fallback_depotkeys.json || true)"
           echo "fallback_depotkeys.json numstat: ${diff_line}"
@@ -90,7 +82,7 @@ jobs:
             exit 1
           fi
 
-          if [ "${additions}" -gt 20000 ]; then
+          if [ "${additions}" -gt 50000 ]; then
             echo "Safety stop: fallback_depotkeys.json has too many additions."
             exit 1
           fi

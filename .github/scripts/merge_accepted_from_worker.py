@@ -22,19 +22,19 @@ PROVIDER_FILE = Path("fallback_depotkeys.json")
 PROCESSED_LOG = Path("merged_submission_ids.json")
 REPORT_FILE = Path("submission_merge_report.json")
 
-MAX_ITEMS_PER_ACCEPTED_FILE = 100_000
+MAX_ITEMS_PER_ACCEPTED_FILE = 200_000
 MAX_TEXT_LEN = 240
-MAX_ITEM_ID = int((os.environ.get("STEAMIDRA_MAX_ITEM_ID") or "50000000").strip())
+MAX_ITEM_ID = int((os.environ.get("STEAMIDRA_MAX_ITEM_ID") or "50000000").strip() or "0")
 
-# Merge only verifier bulk output:
+# accepted/ must ONLY contain verifier bulk output:
 #   accepted/gha-YYYYMMDD-HHMMSS-RUNID.json
-# Skip old single-submission UUID accepted files.
+# Old accepted/<uuid>.json files are intentionally ignored forever.
 ACCEPTED_KEY_RE = re.compile(r"^accepted/gha-[0-9]{8}-[0-9]{6}-[0-9]+\.json$")
 
 DEFAULT_ACCEPTED_MIN_RUN_ID = "gha-20260630-180233-28465451350"
 ACCEPTED_MIN_RUN_ID = (os.environ.get("STEAMIDRA_ACCEPTED_MIN_RUN_ID") or DEFAULT_ACCEPTED_MIN_RUN_ID).strip()
 
-# Optional one-run recovery mode. Leave empty after recovery.
+# Optional exact-run debug mode. NORMAL MODE MUST LEAVE THIS EMPTY.
 ACCEPTED_ONLY_RUN_ID = (os.environ.get("STEAMIDRA_ACCEPTED_ONLY_RUN_ID") or "").strip()
 
 ID_RE = re.compile(r"^[0-9]{1,12}$")
@@ -48,7 +48,10 @@ KIND_ALIASES = {
     "app": "software",
     "dlc depot": "dlc_depot",
     "dlc-depot": "dlc_depot",
+    "depot_dlc": "dlc_depot",
 }
+
+# Only these are root rows without parent fields. DLC can have a parent app.
 ROOT_KINDS = {"game", "software"}
 ITEM_FIELDS = {"id", "key", "name", "kind", "parent_appid", "parent_name"}
 
@@ -76,6 +79,7 @@ def save_json(path: Path, data: Any) -> None:
     path.write_text(
         json.dumps(data, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
+        newline="\n",
     )
 
 
@@ -121,14 +125,6 @@ def clean_kind(value: Any) -> str:
     return "unknown"
 
 
-def is_allowed_raw_kind(value: Any) -> bool:
-    if value is None:
-        return True
-
-    raw = clean_text(value).lower()
-    return raw in KIND_VALUES or raw in KIND_ALIASES
-
-
 def normalize_run_key(value: str) -> str:
     value = value.strip()
 
@@ -165,23 +161,40 @@ def should_merge_accepted_key(key: str) -> bool:
     return True
 
 
-def validate_item(item: Any) -> tuple[bool, str]:
+def validate_submission_shape(body: Any) -> tuple[bool, str]:
+    if not isinstance(body, dict):
+        return False, "body is not object"
+
+    if body.get("type") != "tool_keys":
+        return False, "type is not tool_keys"
+
+    if not isinstance(body.get("tool_version"), str) or not (1 <= len(body["tool_version"]) <= 64):
+        return False, "bad tool_version"
+
+    if not isinstance(body.get("items"), list) or not (0 <= len(body["items"]) <= MAX_ITEMS_PER_ACCEPTED_FILE):
+        return False, "bad items"
+
+    return True, ""
+
+
+def validate_item_basic(item: Any) -> tuple[bool, str, str, str]:
     if not isinstance(item, dict):
-        return False, "item is not object"
+        return False, "item is not object", "", ""
 
     extra = set(item) - ITEM_FIELDS
     if extra:
-        return False, f"invalid fields: {sorted(extra)}"
+        return False, f"invalid fields: {sorted(extra)}", "", ""
 
     item_id = as_id(item.get("id"))
     if not item_id:
-        return False, "bad id"
+        return False, "bad id", "", ""
 
-    if int(item_id) > MAX_ITEM_ID:
-        return False, f"{item_id}: id above max allowed {MAX_ITEM_ID}"
+    if MAX_ITEM_ID > 0 and int(item_id) > MAX_ITEM_ID:
+        return False, f"{item_id}: id above max allowed {MAX_ITEM_ID}", item_id, ""
 
-    if not normalize_key(item.get("key")):
-        return False, f"{item_id}: bad key"
+    item_key = normalize_key(item.get("key"))
+    if not item_key:
+        return False, f"{item_id}: bad key", item_id, ""
 
     name = item.get("name", "")
     if "name" in item and (
@@ -190,14 +203,15 @@ def validate_item(item: Any) -> tuple[bool, str]:
         or "\r" in name
         or "\n" in name
     ):
-        return False, f"{item_id}: bad name"
+        return False, f"{item_id}: bad name", item_id, item_key
 
-    if "kind" in item and not is_allowed_raw_kind(item.get("kind")):
-        return False, f"{item_id}: bad kind"
+    raw_kind = item.get("kind", "unknown")
+    if "kind" in item and clean_kind(raw_kind) == "unknown" and clean_text(raw_kind).lower() not in {"", "unknown"}:
+        return False, f"{item_id}: bad kind", item_id, item_key
 
     parent_appid = item.get("parent_appid", "")
     if "parent_appid" in item and str(parent_appid).strip() and not as_id(parent_appid):
-        return False, f"{item_id}: bad parent_appid"
+        return False, f"{item_id}: bad parent_appid", item_id, item_key
 
     parent_name = item.get("parent_name", "")
     if "parent_name" in item and (
@@ -206,30 +220,9 @@ def validate_item(item: Any) -> tuple[bool, str]:
         or "\r" in parent_name
         or "\n" in parent_name
     ):
-        return False, f"{item_id}: bad parent_name"
+        return False, f"{item_id}: bad parent_name", item_id, item_key
 
-    return True, ""
-
-
-def validate_submission(body: Any) -> tuple[bool, str]:
-    if not isinstance(body, dict):
-        return False, "body is not object"
-
-    if body.get("type") != "tool_keys":
-        return False, "type is not tool_keys"
-
-    if not isinstance(body.get("tool_version"), str) or not (1 <= len(body["tool_version"]) <= 32):
-        return False, "bad tool_version"
-
-    if not isinstance(body.get("items"), list) or not (1 <= len(body["items"]) <= MAX_ITEMS_PER_ACCEPTED_FILE):
-        return False, "bad items"
-
-    for item in body["items"]:
-        ok, err = validate_item(item)
-        if not ok:
-            return False, err
-
-    return True, ""
+    return True, "", item_id, item_key
 
 
 def make_provider_entry(item: dict[str, Any]) -> dict[str, Any]:
@@ -265,15 +258,7 @@ def existing_key(value: Any) -> str:
 
 
 def is_empty_placeholder(value: Any) -> bool:
-    if value is None:
-        return True
-    if value == "":
-        return True
-    if value == {}:
-        return True
-    if value == []:
-        return True
-    if isinstance(value, dict) and not normalize_key(value.get("key")):
+    if value is None or value == "" or value == {} or value == []:
         return True
 
     return False
@@ -287,7 +272,7 @@ def fill_existing_object(existing: dict[str, Any], item: dict[str, Any]) -> bool
         existing["key"] = new_key
         changed = True
 
-    # Only fill blank metadata. Do not overwrite existing names/kinds/parents.
+    # Fill blank metadata only. Do not overwrite existing non-empty provider metadata.
     if not clean_text(existing.get("name", "")):
         name = clean_text(item.get("name", ""))
         if name:
@@ -303,7 +288,7 @@ def fill_existing_object(existing: dict[str, Any], item: dict[str, Any]) -> bool
             changed = True
 
     if existing_kind in ROOT_KINDS:
-        # Root rows must not have parent fields.
+        # Root rows should not carry parent fields.
         if "parent_appid" in existing:
             existing.pop("parent_appid", None)
             changed = True
@@ -325,17 +310,17 @@ def fill_existing_object(existing: dict[str, Any], item: dict[str, Any]) -> bool
     return changed
 
 
-def merge_item(provider: dict[str, Any], item: dict[str, Any], report: dict[str, Any]) -> bool:
-    item_id = as_id(item.get("id"))
-    item_key = normalize_key(item.get("key"))
-
-    if not item_id or not item_key:
-        report["bad_items_skipped"] += 1
+def merge_item(provider: dict[str, Any], item: Any, report: dict[str, Any]) -> bool:
+    ok, err, item_id, item_key = validate_item_basic(item)
+    if not ok:
+        if "id above max allowed" in err:
+            report["high_id_items_skipped"] += 1
+        else:
+            report["bad_items_skipped"] += 1
+            report["bad_items"].append({"id": item_id, "error": err})
         return False
 
-    if int(item_id) > MAX_ITEM_ID:
-        report["high_id_items_skipped"] += 1
-        return False
+    assert isinstance(item, dict)
 
     if item_id not in provider:
         provider[item_id] = make_provider_entry(item)
@@ -345,10 +330,8 @@ def merge_item(provider: dict[str, Any], item: dict[str, Any], report: dict[str,
     raw_existing = provider.get(item_id)
     old_key = existing_key(raw_existing)
 
-    if old_key:
-        if old_key == item_key:
-            report["same_key_existing"] += 1
-        else:
+    if isinstance(raw_existing, dict):
+        if old_key and old_key != item_key:
             report["conflicts"].append({
                 "id": item_id,
                 "existing": old_key,
@@ -356,21 +339,35 @@ def merge_item(provider: dict[str, Any], item: dict[str, Any], report: dict[str,
                 "name": clean_text(item.get("name", "")),
                 "kind": clean_kind(item.get("kind", "unknown")),
             })
+            return False
 
-        # Existing keyed entry is preserved exactly. No rewrite.
-        return False
-
-    if isinstance(raw_existing, dict):
         changed = fill_existing_object(raw_existing, item)
+        if old_key == item_key:
+            report["same_key_existing"] += 1
         if changed:
-            report["keys_filled"] += 1
+            report["keys_or_metadata_filled"] += 1
         else:
-            report["empty_existing_unchanged"] += 1
+            report["existing_unchanged"] += 1
         return changed
+
+    if isinstance(raw_existing, str):
+        if old_key and old_key != item_key:
+            report["conflicts"].append({
+                "id": item_id,
+                "existing": old_key,
+                "new": item_key,
+                "name": clean_text(item.get("name", "")),
+                "kind": clean_kind(item.get("kind", "unknown")),
+            })
+            return False
+
+        provider[item_id] = make_provider_entry(item)
+        report["legacy_string_converted"] += 1
+        return True
 
     if is_empty_placeholder(raw_existing):
         provider[item_id] = make_provider_entry(item)
-        report["keys_filled"] += 1
+        report["keys_or_metadata_filled"] += 1
         return True
 
     # Unknown non-empty shape. Preserve it.
@@ -383,7 +380,7 @@ def api_get_json(url: str) -> Any:
         url,
         headers={
             "Accept": "application/json",
-            "User-Agent": "SteaMidra-GitHubAction-Merge/1.0",
+            "User-Agent": "SteaMidra-GitHubAction-Merge/3.0",
             "x-admin-token": ADMIN_TOKEN,
         },
     )
@@ -404,7 +401,7 @@ def list_accepted() -> list[str]:
         data = api_get_json(API_BASE + "/admin/accepted?" + urlencode(qs))
 
         if not isinstance(data, dict) or not data.get("ok"):
-            raise RuntimeError(f"admin list failed: {data}")
+            raise RuntimeError(f"admin accepted list failed: {data}")
 
         for obj in data.get("objects", []):
             key = obj.get("key") if isinstance(obj, dict) else None
@@ -473,13 +470,15 @@ def main() -> None:
         "bad_submissions": [],
         "items_seen": 0,
         "new_entries": 0,
-        "keys_filled": 0,
+        "keys_or_metadata_filled": 0,
+        "legacy_string_converted": 0,
         "same_key_existing": 0,
-        "conflicts": [],
+        "existing_unchanged": 0,
         "bad_items_skipped": 0,
         "high_id_items_skipped": 0,
-        "empty_existing_unchanged": 0,
         "existing_unrecognized_preserved": 0,
+        "conflicts": [],
+        "bad_items": [],
         "provider_count_before": provider_count_before,
         "provider_count_after": provider_count_before,
         "provider_changed": False,
@@ -499,18 +498,20 @@ def main() -> None:
             report["bad_submissions"].append({"object": key, "error": f"download error: {e}"})
             continue
 
-        ok, err = validate_submission(body)
+        ok, err = validate_submission_shape(body)
         if not ok:
             report["bad_submissions"].append({"object": key, "error": err})
             continue
 
         report["objects_processed"] += 1
-        newly_processed.append(key)
 
         for item in body["items"]:
             report["items_seen"] += 1
             changed = merge_item(provider, item, report)
             provider_changed = provider_changed or changed
+
+        # Mark the GHA file processed even if some individual fake/bad items were skipped.
+        newly_processed.append(key)
 
     report["provider_count_after"] = len(provider)
     report["provider_changed"] = provider_changed
@@ -537,11 +538,12 @@ def main() -> None:
         "objects_skipped_already_processed",
         "items_seen",
         "new_entries",
-        "keys_filled",
+        "keys_or_metadata_filled",
+        "legacy_string_converted",
         "same_key_existing",
+        "existing_unchanged",
         "bad_items_skipped",
         "high_id_items_skipped",
-        "empty_existing_unchanged",
         "existing_unrecognized_preserved",
         "provider_count_before",
         "provider_count_after",
@@ -551,6 +553,7 @@ def main() -> None:
 
     print(f"conflicts: {len(report['conflicts'])}")
     print(f"bad_submissions: {len(report['bad_submissions'])}")
+    print(f"bad_items: {len(report['bad_items'])}")
 
     if report["conflicts"]:
         print("Conflicts were NOT overwritten. First 20:")
@@ -566,6 +569,11 @@ def main() -> None:
         print("Bad submissions were skipped. First 20:")
         for bad in report["bad_submissions"][:20]:
             print(f"  {bad.get('object')}: {bad.get('error')}")
+
+    if report["bad_items"]:
+        print("Bad items were skipped. First 20:")
+        for bad in report["bad_items"][:20]:
+            print(f"  {bad.get('id')}: {bad.get('error')}")
 
     if provider_changed:
         save_json(PROVIDER_FILE, provider)
