@@ -174,6 +174,16 @@ def validate_submission(body: Any) -> tuple[bool, str]:
 
 
 def normalize_entry(entry: Any) -> dict[str, Any]:
+    # Supports both provider formats:
+    #   old: "123": "64hexkey"
+    #   new: "123": {"key":"64hexkey", "name":"...", "kind":"..."}
+    if isinstance(entry, str):
+        return {
+            "key": normalize_key(entry),
+            "name": "",
+            "kind": "unknown",
+        }
+
     if not isinstance(entry, dict):
         entry = {}
 
