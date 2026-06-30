@@ -9,6 +9,7 @@ from typing import Any
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
+
 DEFAULT_API_BASE = "https://stea-provider-api.steamidra.workers.dev"
 
 API_BASE = (os.environ.get("STEAMIDRA_API_BASE") or DEFAULT_API_BASE).strip().rstrip("/")
@@ -16,6 +17,32 @@ ADMIN_TOKEN = (os.environ.get("STEAMIDRA_ADMIN_TOKEN") or "").strip()
 
 if not API_BASE.startswith(("http://", "https://")):
     raise SystemExit(f"Bad STEAMIDRA_API_BASE: {API_BASE!r}")
+
+# Only merge verifier-created bulk files:
+#   accepted/gha-20260630-180233-28465451350.json
+#
+# This intentionally ignores old manual/single accepted objects:
+#   accepted/3b597d25-3680-4164-adad-a4d43f724778.json
+ACCEPTED_KEY_RE = re.compile(r"^accepted/gha-[0-9]{8}-[0-9]{6}-[0-9]+\.json$")
+
+# Default cutoff skips old broken test GHA files before the good fixed run.
+# Override in workflow with STEAMIDRA_ACCEPTED_MIN_RUN_ID if needed.
+DEFAULT_ACCEPTED_MIN_RUN_ID = "gha-20260630-180233-28465451350"
+ACCEPTED_MIN_RUN_ID = (os.environ.get("STEAMIDRA_ACCEPTED_MIN_RUN_ID") or DEFAULT_ACCEPTED_MIN_RUN_ID).strip()
+
+# Optional exact run mode. Usually leave empty.
+# Example:
+#   STEAMIDRA_ACCEPTED_ONLY_RUN_ID=gha-20260630-180233-28465451350
+ACCEPTED_ONLY_RUN_ID = (os.environ.get("STEAMIDRA_ACCEPTED_ONLY_RUN_ID") or "").strip()
+
+# Keep existing provider format safe.
+# fallback_depotkeys.json historically stores:
+#   "123": "64hexkey"
+#
+# Default keeps new entries as strings too, so consumers expecting the old format do not break.
+# Set STEAMIDRA_OUTPUT_LEGACY_STRINGS=0 only if you intentionally want object values.
+OUTPUT_LEGACY_STRINGS = (os.environ.get("STEAMIDRA_OUTPUT_LEGACY_STRINGS") or "1").strip() != "0"
+
 
 PROVIDER_FILE = Path("fallback_depotkeys.json")
 PROCESSED_LOG = Path("merged_submission_ids.json")
@@ -39,6 +66,14 @@ KIND_ALIASES = {
 
 ROOT_KINDS = {"game", "software"}
 ITEM_FIELDS = {"id", "key", "name", "kind", "parent_appid", "parent_name"}
+
+ACCEPTED_LIST_STATS = {
+    "objects_seen_total": 0,
+    "objects_selected_gha": 0,
+    "objects_ignored_not_gha": 0,
+    "objects_ignored_before_min": 0,
+    "objects_ignored_not_exact": 0,
+}
 
 
 def load_json(path: Path, default: Any) -> Any:
@@ -232,6 +267,13 @@ def make_incoming_entry(item: dict[str, Any]) -> dict[str, Any]:
     return normalize_entry(entry)
 
 
+def provider_value_for_new_entry(entry: dict[str, Any]) -> Any:
+    if OUTPUT_LEGACY_STRINGS:
+        return entry["key"]
+
+    return normalize_entry(entry)
+
+
 def merge_item(provider: dict[str, Any], item: dict[str, Any], report: dict[str, Any]) -> None:
     item_id = as_id(item.get("id"))
     incoming_entry = make_incoming_entry(item)
@@ -242,7 +284,7 @@ def merge_item(provider: dict[str, Any], item: dict[str, Any], report: dict[str,
     incoming_parent_name = incoming_entry.get("parent_name", "")
 
     if item_id not in provider:
-        provider[item_id] = incoming_entry
+        provider[item_id] = provider_value_for_new_entry(incoming_entry)
         report["new_entries"] += 1
         return
 
@@ -251,56 +293,69 @@ def merge_item(provider: dict[str, Any], item: dict[str, Any], report: dict[str,
     old_key = normalize_key(entry.get("key", ""))
 
     if not old_key:
-        entry["key"] = incoming_key
-        report["keys_filled"] += 1
-    elif old_key == incoming_key:
-        report["same_key_existing"] += 1
-    else:
-        report["conflicts"].append(
-            {
-                "id": item_id,
-                "existing": old_key,
-                "new": incoming_key,
-                "name": incoming_name,
-            }
-        )
+        if isinstance(raw_existing, str) or OUTPUT_LEGACY_STRINGS:
+            provider[item_id] = incoming_key
+        else:
+            entry["key"] = incoming_key
+            provider[item_id] = normalize_entry(entry)
 
-        # Preserve old legacy string entry on conflict.
-        provider[item_id] = raw_existing if isinstance(raw_existing, str) else entry
+        report["keys_filled"] += 1
         return
 
-    # Accepted verifier metadata is allowed to fix old provider metadata when the key matches.
-    if incoming_name and entry.get("name") != incoming_name:
-        entry["name"] = incoming_name
-        report["metadata_filled"] += 1
+    if old_key == incoming_key:
+        report["same_key_existing"] += 1
 
-    if incoming_kind != "unknown" and entry.get("kind", "unknown") != incoming_kind:
-        entry["kind"] = incoming_kind
-        report["metadata_filled"] += 1
+        # Critical safety:
+        # If the repo already has legacy string format, do NOT convert it to object format.
+        # This avoids massive noisy diffs and keeps old consumers working.
+        if isinstance(raw_existing, str):
+            return
 
-    if entry.get("kind") in ROOT_KINDS:
-        removed_parent = False
-
-        if "parent_appid" in entry:
-            entry.pop("parent_appid", None)
-            removed_parent = True
-
-        if "parent_name" in entry:
-            entry.pop("parent_name", None)
-            removed_parent = True
-
-        if removed_parent:
-            report["metadata_filled"] += 1
-    else:
-        if incoming_parent_appid and entry.get("parent_appid") != incoming_parent_appid:
-            entry["parent_appid"] = incoming_parent_appid
+        # Existing object entries may receive better metadata.
+        if incoming_name and entry.get("name") != incoming_name:
+            entry["name"] = incoming_name
             report["metadata_filled"] += 1
 
-        if incoming_parent_name and entry.get("parent_name") != incoming_parent_name:
-            entry["parent_name"] = incoming_parent_name
+        if incoming_kind != "unknown" and entry.get("kind", "unknown") != incoming_kind:
+            entry["kind"] = incoming_kind
             report["metadata_filled"] += 1
 
-    provider[item_id] = normalize_entry(entry)
+        if entry.get("kind") in ROOT_KINDS:
+            removed_parent = False
+
+            if "parent_appid" in entry:
+                entry.pop("parent_appid", None)
+                removed_parent = True
+
+            if "parent_name" in entry:
+                entry.pop("parent_name", None)
+                removed_parent = True
+
+            if removed_parent:
+                report["metadata_filled"] += 1
+        else:
+            if incoming_parent_appid and entry.get("parent_appid") != incoming_parent_appid:
+                entry["parent_appid"] = incoming_parent_appid
+                report["metadata_filled"] += 1
+
+            if incoming_parent_name and entry.get("parent_name") != incoming_parent_name:
+                entry["parent_name"] = incoming_parent_name
+                report["metadata_filled"] += 1
+
+        provider[item_id] = normalize_entry(entry)
+        return
+
+    report["conflicts"].append(
+        {
+            "id": item_id,
+            "existing": old_key,
+            "new": incoming_key,
+            "name": incoming_name,
+        }
+    )
+
+    # Preserve old entry on conflict. Never overwrite known existing key with a different key.
+    provider[item_id] = raw_existing
 
 
 def sorted_provider(provider: dict[str, Any], report: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -332,9 +387,48 @@ def sorted_provider(provider: dict[str, Any], report: dict[str, Any] | None = No
                 report["invalid_existing_entries_skipped"] += 1
             continue
 
-        out[sid] = entry
+        if OUTPUT_LEGACY_STRINGS:
+            out[sid] = entry["key"]
+        else:
+            out[sid] = entry
 
     return out
+
+
+def normalize_accepted_run_id(value: str) -> str:
+    value = value.strip()
+
+    if not value:
+        return ""
+
+    if not value.startswith("accepted/"):
+        value = "accepted/" + value
+
+    if not value.endswith(".json"):
+        value += ".json"
+
+    return value
+
+
+def should_merge_accepted_key(key: str) -> bool:
+    ACCEPTED_LIST_STATS["objects_seen_total"] += 1
+
+    if not ACCEPTED_KEY_RE.fullmatch(key):
+        ACCEPTED_LIST_STATS["objects_ignored_not_gha"] += 1
+        return False
+
+    exact_key = normalize_accepted_run_id(ACCEPTED_ONLY_RUN_ID)
+    if exact_key and key != exact_key:
+        ACCEPTED_LIST_STATS["objects_ignored_not_exact"] += 1
+        return False
+
+    min_key = normalize_accepted_run_id(ACCEPTED_MIN_RUN_ID)
+    if min_key and key < min_key:
+        ACCEPTED_LIST_STATS["objects_ignored_before_min"] += 1
+        return False
+
+    ACCEPTED_LIST_STATS["objects_selected_gha"] += 1
+    return True
 
 
 def api_get_json(url: str) -> Any:
@@ -360,14 +454,14 @@ def list_accepted() -> list[str]:
         if cursor:
             qs["cursor"] = cursor
 
-        data = api_get_json(API_BASE.rstrip("/") + "/admin/accepted?" + urlencode(qs))
+        data = api_get_json(API_BASE + "/admin/accepted?" + urlencode(qs))
 
         if not isinstance(data, dict) or not data.get("ok"):
             raise RuntimeError(f"admin list failed: {data}")
 
         for obj in data.get("objects", []):
             key = obj.get("key") if isinstance(obj, dict) else None
-            if isinstance(key, str) and key.startswith("accepted/") and key.endswith(".json"):
+            if isinstance(key, str) and should_merge_accepted_key(key):
                 keys.append(key)
 
         if not data.get("truncated"):
@@ -398,7 +492,7 @@ def unwrap_submission_response(data: Any) -> Any:
 
 
 def download_submission(key: str) -> Any:
-    url = API_BASE.rstrip("/") + "/admin/submission?key=" + quote(key, safe="")
+    url = API_BASE + "/admin/submission?key=" + quote(key, safe="")
     return unwrap_submission_response(api_get_json(url))
 
 
@@ -422,6 +516,15 @@ def main() -> None:
 
     report = {
         "started_at": int(time.time()),
+        "api_base": API_BASE,
+        "accepted_min_run_id": ACCEPTED_MIN_RUN_ID,
+        "accepted_only_run_id": ACCEPTED_ONLY_RUN_ID,
+        "output_legacy_strings": OUTPUT_LEGACY_STRINGS,
+        "objects_seen_total": ACCEPTED_LIST_STATS["objects_seen_total"],
+        "objects_selected_gha": ACCEPTED_LIST_STATS["objects_selected_gha"],
+        "objects_ignored_not_gha": ACCEPTED_LIST_STATS["objects_ignored_not_gha"],
+        "objects_ignored_before_min": ACCEPTED_LIST_STATS["objects_ignored_before_min"],
+        "objects_ignored_not_exact": ACCEPTED_LIST_STATS["objects_ignored_not_exact"],
         "objects_found": len(object_keys),
         "objects_processed": 0,
         "objects_skipped_already_processed": 0,
@@ -464,6 +567,15 @@ def main() -> None:
 
     print("Merge summary")
     for key in (
+        "api_base",
+        "accepted_min_run_id",
+        "accepted_only_run_id",
+        "output_legacy_strings",
+        "objects_seen_total",
+        "objects_selected_gha",
+        "objects_ignored_not_gha",
+        "objects_ignored_before_min",
+        "objects_ignored_not_exact",
         "objects_found",
         "objects_processed",
         "objects_skipped_already_processed",
@@ -488,6 +600,11 @@ def main() -> None:
                 f"new={conflict['new']} "
                 f"name={conflict.get('name', '')}"
             )
+
+    if report["bad_submissions"]:
+        print("Bad submissions were skipped. First 20:")
+        for bad in report["bad_submissions"][:20]:
+            print(f"  {bad.get('object')}: {bad.get('error')}")
 
     save_json(REPORT_FILE, report)
 
