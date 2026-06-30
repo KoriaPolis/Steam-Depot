@@ -9,8 +9,8 @@ from typing import Any
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
-API_BASE = os.environ.get("STEAMIDRA_API_BASE", "https://stea-provider-api.steamidra.workers.dev")
-ADMIN_TOKEN = os.environ.get("STEAMIDRA_ADMIN_TOKEN", "")
+API_BASE = os.environ["STEAMIDRA_API_BASE"].strip()
+ADMIN_TOKEN = os.environ["STEAMIDRA_ADMIN_TOKEN"].strip()
 
 PROVIDER_FILE = Path("fallback_depotkeys.json")
 PROCESSED_LOG = Path("merged_submission_ids.json")
