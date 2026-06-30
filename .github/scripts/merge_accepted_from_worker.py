@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -12,42 +11,65 @@ from urllib.request import Request, urlopen
 
 API_BASE = os.environ.get("STEAMIDRA_API_BASE", "https://stea-provider-api.steamidra.workers.dev")
 ADMIN_TOKEN = os.environ.get("STEAMIDRA_ADMIN_TOKEN", "")
+
 PROVIDER_FILE = Path("fallback_depotkeys.json")
 PROCESSED_LOG = Path("merged_submission_ids.json")
 REPORT_FILE = Path("submission_merge_report.json")
 
+MAX_ITEMS_PER_ACCEPTED_FILE = 100_000
+MAX_TEXT_LEN = 240
+
 ID_RE = re.compile(r"^[0-9]{1,12}$")
 KEY_RE = re.compile(r"^[a-fA-F0-9]{64}$")
+
 KIND_VALUES = {"game", "software", "dlc", "depot", "dlc_depot", "unknown"}
+KIND_ALIASES = {
+    "tool": "software",
+    "tools": "software",
+    "application": "software",
+    "app": "software",
+    "dlc depot": "dlc_depot",
+    "dlc-depot": "dlc_depot",
+}
+
+ROOT_KINDS = {"game", "software"}
 ITEM_FIELDS = {"id", "key", "name", "kind", "parent_appid", "parent_name"}
 
 
 def load_json(path: Path, default: Any) -> Any:
     if not path.exists():
         return default
+
     text = path.read_text(encoding="utf-8-sig", errors="replace").strip()
     if not text:
         return default
+
     return json.loads(text)
 
 
 def save_json(path: Path, data: Any) -> None:
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(data, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
 
 
 def as_id(value: Any) -> str:
     if isinstance(value, int) and value >= 0:
         return str(value)
+
     if isinstance(value, str):
         value = value.strip()
         if ID_RE.fullmatch(value):
             return str(int(value))
+
     return ""
 
 
-def clean_text(value: Any, max_len: int = 240) -> str:
+def clean_text(value: Any, max_len: int = MAX_TEXT_LEN) -> str:
     if not isinstance(value, str):
         return ""
+
     value = value.replace("\u3000", " ").replace("\xa0", " ")
     value = value.replace("\r", " ").replace("\n", " ").strip()
     value = re.sub(r"\s+", " ", value)
@@ -56,18 +78,28 @@ def clean_text(value: Any, max_len: int = 240) -> str:
 
 def clean_kind(value: Any) -> str:
     value = clean_text(value).lower()
+
     if value in KIND_VALUES:
         return value
-    if value in {"tool", "tools", "application"}:
-        return "software"
-    if value in {"dlc depot", "dlc-depot"}:
-        return "dlc_depot"
+
+    if value in KIND_ALIASES:
+        return KIND_ALIASES[value]
+
     return "unknown"
+
+
+def is_allowed_raw_kind(value: Any) -> bool:
+    if value is None:
+        return True
+
+    raw = clean_text(value).lower()
+    return raw in KIND_VALUES or raw in KIND_ALIASES
 
 
 def normalize_key(value: Any) -> str:
     if not isinstance(value, str):
         return ""
+
     value = value.strip().lower()
     return value if KEY_RE.fullmatch(value) else ""
 
@@ -88,10 +120,15 @@ def validate_item(item: Any) -> tuple[bool, str]:
         return False, f"{item_id}: bad key"
 
     name = item.get("name", "")
-    if "name" in item and (not isinstance(name, str) or len(name) > 200 or "\r" in name or "\n" in name):
+    if "name" in item and (
+        not isinstance(name, str)
+        or len(name) > MAX_TEXT_LEN
+        or "\r" in name
+        or "\n" in name
+    ):
         return False, f"{item_id}: bad name"
 
-    if "kind" in item and clean_kind(item.get("kind")) not in KIND_VALUES:
+    if "kind" in item and not is_allowed_raw_kind(item.get("kind")):
         return False, f"{item_id}: bad kind"
 
     parent_appid = item.get("parent_appid", "")
@@ -99,7 +136,12 @@ def validate_item(item: Any) -> tuple[bool, str]:
         return False, f"{item_id}: bad parent_appid"
 
     parent_name = item.get("parent_name", "")
-    if "parent_name" in item and (not isinstance(parent_name, str) or len(parent_name) > 200 or "\r" in parent_name or "\n" in parent_name):
+    if "parent_name" in item and (
+        not isinstance(parent_name, str)
+        or len(parent_name) > MAX_TEXT_LEN
+        or "\r" in parent_name
+        or "\n" in parent_name
+    ):
         return False, f"{item_id}: bad parent_name"
 
     return True, ""
@@ -108,51 +150,84 @@ def validate_item(item: Any) -> tuple[bool, str]:
 def validate_submission(body: Any) -> tuple[bool, str]:
     if not isinstance(body, dict):
         return False, "body is not object"
+
     if body.get("type") != "tool_keys":
         return False, "type is not tool_keys"
+
     if not isinstance(body.get("tool_version"), str) or not (1 <= len(body["tool_version"]) <= 32):
         return False, "bad tool_version"
-    if not isinstance(body.get("items"), list) or not (1 <= len(body["items"]) <= 1000):
+
+    if not isinstance(body.get("items"), list) or not (1 <= len(body["items"]) <= MAX_ITEMS_PER_ACCEPTED_FILE):
         return False, "bad items"
+
     for item in body["items"]:
         ok, err = validate_item(item)
         if not ok:
             return False, err
+
     return True, ""
 
 
 def normalize_entry(entry: Any) -> dict[str, Any]:
     if not isinstance(entry, dict):
         entry = {}
-    out = {
+
+    out: dict[str, Any] = {
         "key": normalize_key(entry.get("key", "")),
         "name": clean_text(entry.get("name", "")),
         "kind": clean_kind(entry.get("kind", "unknown")),
     }
-    pa = as_id(entry.get("parent_appid", ""))
-    pn = clean_text(entry.get("parent_name", ""))
-    if pa:
-        out["parent_appid"] = pa
-    if pn:
-        out["parent_name"] = pn
+
+    # Final provider rule:
+    # root game/software rows must never contain parent_appid or parent_name.
+    if out["kind"] in ROOT_KINDS:
+        return out
+
+    parent_appid = as_id(entry.get("parent_appid", ""))
+    parent_name = clean_text(entry.get("parent_name", ""))
+
+    if parent_appid:
+        out["parent_appid"] = parent_appid
+
+    if parent_name:
+        out["parent_name"] = parent_name
+
     return out
+
+
+def make_incoming_entry(item: dict[str, Any]) -> dict[str, Any]:
+    incoming_kind = clean_kind(item.get("kind", "unknown"))
+
+    entry: dict[str, Any] = {
+        "key": normalize_key(item.get("key")),
+        "name": clean_text(item.get("name", "")),
+        "kind": incoming_kind,
+    }
+
+    if incoming_kind not in ROOT_KINDS:
+        parent_appid = as_id(item.get("parent_appid", ""))
+        parent_name = clean_text(item.get("parent_name", ""))
+
+        if parent_appid:
+            entry["parent_appid"] = parent_appid
+
+        if parent_name:
+            entry["parent_name"] = parent_name
+
+    return normalize_entry(entry)
 
 
 def merge_item(provider: dict[str, dict[str, Any]], item: dict[str, Any], report: dict[str, Any]) -> None:
     item_id = as_id(item.get("id"))
-    incoming_key = normalize_key(item.get("key"))
-    incoming_name = clean_text(item.get("name", ""))
-    incoming_kind = clean_kind(item.get("kind", "unknown"))
-    incoming_parent_appid = as_id(item.get("parent_appid", ""))
-    incoming_parent_name = clean_text(item.get("parent_name", ""))
+    incoming_entry = make_incoming_entry(item)
+    incoming_key = incoming_entry["key"]
+    incoming_name = incoming_entry.get("name", "")
+    incoming_kind = incoming_entry.get("kind", "unknown")
+    incoming_parent_appid = incoming_entry.get("parent_appid", "")
+    incoming_parent_name = incoming_entry.get("parent_name", "")
 
     if item_id not in provider or not isinstance(provider.get(item_id), dict):
-        entry = {"key": incoming_key, "name": incoming_name, "kind": incoming_kind}
-        if incoming_parent_appid:
-            entry["parent_appid"] = incoming_parent_appid
-        if incoming_parent_name:
-            entry["parent_name"] = incoming_parent_name
-        provider[item_id] = entry
+        provider[item_id] = incoming_entry
         report["new_entries"] += 1
         return
 
@@ -165,61 +240,102 @@ def merge_item(provider: dict[str, dict[str, Any]], item: dict[str, Any], report
     elif old_key == incoming_key:
         report["same_key_existing"] += 1
     else:
-        report["conflicts"].append({"id": item_id, "existing": old_key, "new": incoming_key, "name": incoming_name})
+        report["conflicts"].append(
+            {
+                "id": item_id,
+                "existing": old_key,
+                "new": incoming_key,
+                "name": incoming_name,
+            }
+        )
         provider[item_id] = entry
         return
 
-    if incoming_name and not entry.get("name"):
+    # Accepted verifier metadata is allowed to fix old provider metadata when the key matches.
+    if incoming_name and entry.get("name") != incoming_name:
         entry["name"] = incoming_name
         report["metadata_filled"] += 1
-    if incoming_kind != "unknown" and entry.get("kind", "unknown") == "unknown":
+
+    if incoming_kind != "unknown" and entry.get("kind", "unknown") != incoming_kind:
         entry["kind"] = incoming_kind
         report["metadata_filled"] += 1
-    if incoming_parent_appid and not entry.get("parent_appid"):
-        entry["parent_appid"] = incoming_parent_appid
-        report["metadata_filled"] += 1
-    if incoming_parent_name and not entry.get("parent_name"):
-        entry["parent_name"] = incoming_parent_name
-        report["metadata_filled"] += 1
 
-    provider[item_id] = entry
+    if entry.get("kind") in ROOT_KINDS:
+        removed_parent = False
+
+        if "parent_appid" in entry:
+            entry.pop("parent_appid", None)
+            removed_parent = True
+
+        if "parent_name" in entry:
+            entry.pop("parent_name", None)
+            removed_parent = True
+
+        if removed_parent:
+            report["metadata_filled"] += 1
+    else:
+        if incoming_parent_appid and entry.get("parent_appid") != incoming_parent_appid:
+            entry["parent_appid"] = incoming_parent_appid
+            report["metadata_filled"] += 1
+
+        if incoming_parent_name and entry.get("parent_name") != incoming_parent_name:
+            entry["parent_name"] = incoming_parent_name
+            report["metadata_filled"] += 1
+
+    provider[item_id] = normalize_entry(entry)
 
 
-def sorted_provider(provider: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    out = {}
+def sorted_provider(provider: dict[str, dict[str, Any]], report: dict[str, Any] | None = None) -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
+
     for item_id in sorted(provider.keys(), key=lambda x: int(x) if str(x).isdigit() else 10**18):
         sid = as_id(item_id)
-        if sid:
-            out[sid] = normalize_entry(provider[item_id])
+        if not sid:
+            if report is not None:
+                report["invalid_existing_entries_skipped"] += 1
+            continue
+
+        entry = normalize_entry(provider[item_id])
+        if not entry.get("key"):
+            if report is not None:
+                report["invalid_existing_entries_skipped"] += 1
+            continue
+
+        out[sid] = entry
+
     return out
 
 
 def api_get_json(url: str) -> Any:
-    req = Request(url, headers={
-        "Accept": "application/json",
-        "User-Agent": "SteaMidra-GitHubAction-Merge/1.0",
-        "x-admin-token": ADMIN_TOKEN,
-    })
+    req = Request(
+        url,
+        headers={
+            "Accept": "application/json",
+            "User-Agent": "SteaMidra-GitHubAction-Merge/1.0",
+            "x-admin-token": ADMIN_TOKEN,
+        },
+    )
+
     with urlopen(req, timeout=120) as res:
         return json.loads(res.read().decode("utf-8-sig"))
 
 
 def list_accepted() -> list[str]:
-    keys = []
-    cursor = None
+    keys: list[str] = []
+    cursor: str | None = None
 
     while True:
-        qs = {"limit": "1000"}
+        qs = {"limit": "100000"}
         if cursor:
             qs["cursor"] = cursor
 
         data = api_get_json(API_BASE.rstrip("/") + "/admin/accepted?" + urlencode(qs))
 
-        if not data.get("ok"):
+        if not isinstance(data, dict) or not data.get("ok"):
             raise RuntimeError(f"admin list failed: {data}")
 
         for obj in data.get("objects", []):
-            key = obj.get("key")
+            key = obj.get("key") if isinstance(obj, dict) else None
             if isinstance(key, str) and key.startswith("accepted/") and key.endswith(".json"):
                 keys.append(key)
 
@@ -233,9 +349,26 @@ def list_accepted() -> list[str]:
     return sorted(set(keys))
 
 
+def unwrap_submission_response(data: Any) -> Any:
+    # Supports both styles:
+    #   raw accepted JSON:
+    #     {"tool_version":"...", "type":"tool_keys", "items":[...]}
+    #   wrapped admin JSON:
+    #     {"ok":true, "submission": {...}}
+    #     {"ok":true, "body": {...}}
+    #     {"ok":true, "data": {...}}
+    if isinstance(data, dict) and data.get("ok") is True:
+        for key in ("submission", "body", "data"):
+            nested = data.get(key)
+            if isinstance(nested, dict):
+                return nested
+
+    return data
+
+
 def download_submission(key: str) -> Any:
     url = API_BASE.rstrip("/") + "/admin/submission?key=" + quote(key, safe="")
-    return api_get_json(url)
+    return unwrap_submission_response(api_get_json(url))
 
 
 def main() -> None:
@@ -252,8 +385,8 @@ def main() -> None:
     processed = load_json(PROCESSED_LOG, [])
     if not isinstance(processed, list):
         processed = []
-    processed_set = set(str(x) for x in processed)
 
+    processed_set = set(str(x) for x in processed)
     object_keys = list_accepted()
 
     report = {
@@ -267,10 +400,11 @@ def main() -> None:
         "keys_filled": 0,
         "same_key_existing": 0,
         "metadata_filled": 0,
+        "invalid_existing_entries_skipped": 0,
         "conflicts": [],
     }
 
-    newly_processed = []
+    newly_processed: list[str] = []
 
     for key in object_keys:
         if key in processed_set:
@@ -295,18 +429,34 @@ def main() -> None:
             report["items_seen"] += 1
             merge_item(provider, item, report)
 
-    provider = sorted_provider(provider)
+    provider = sorted_provider(provider, report)
 
     print("Merge summary")
-    for k in ("objects_found", "objects_processed", "objects_skipped_already_processed", "items_seen", "new_entries", "keys_filled", "same_key_existing", "metadata_filled"):
-        print(f"{k}: {report[k]}")
+    for key in (
+        "objects_found",
+        "objects_processed",
+        "objects_skipped_already_processed",
+        "items_seen",
+        "new_entries",
+        "keys_filled",
+        "same_key_existing",
+        "metadata_filled",
+        "invalid_existing_entries_skipped",
+    ):
+        print(f"{key}: {report[key]}")
+
     print(f"conflicts: {len(report['conflicts'])}")
     print(f"bad_submissions: {len(report['bad_submissions'])}")
 
     if report["conflicts"]:
         print("Conflicts were NOT overwritten. First 20:")
-        for c in report["conflicts"][:20]:
-            print(f"  {c['id']}: existing={c['existing']} new={c['new']} name={c.get('name','')}")
+        for conflict in report["conflicts"][:20]:
+            print(
+                f"  {conflict['id']}: "
+                f"existing={conflict['existing']} "
+                f"new={conflict['new']} "
+                f"name={conflict.get('name', '')}"
+            )
 
     save_json(REPORT_FILE, report)
 
