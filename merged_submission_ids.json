@@ -84,6 +84,7 @@
   "accepted/8f331e53-13bb-41eb-b4a3-202a4b8f0ffd.json",
   "accepted/8f878399-fc2c-449d-ae6f-686220cecd61.json",
   "accepted/8fb845a1-6d25-40d6-9aca-896beb8bc2d3.json",
+  "accepted/905b9c77-a90f-43f8-bec1-7be5daa51762.json",
   "accepted/9164b33b-0a1d-4951-b725-89dba7a34296.json",
   "accepted/961022b2-25cd-474a-86f3-e14589169e83.json",
   "accepted/97deb191-a1ec-44c5-bb39-7ac9e7b18d1a.json",
@@ -105,6 +106,7 @@
   "accepted/b9fca310-2720-4f0f-833b-2e2a1e7ec653.json",
   "accepted/be3ee8ab-a92a-4bfb-b8b6-bc1303c4c09e.json",
   "accepted/beaf587a-847a-4839-8499-869b374aefec.json",
+  "accepted/c004265a-a18a-4fa0-a3b8-cc6d8a3d8dee.json",
   "accepted/c592cb0e-7e87-48c5-ad14-e85f76916482.json",
   "accepted/c5d2fd45-bbed-44e2-a8c7-e59f8e7b7748.json",
   "accepted/c64bf769-d1db-4a5b-979f-b50afa2654e5.json",
@@ -133,5 +135,11 @@
   "accepted/fb397f87-2849-4021-b6ce-aee29df3dad9.json",
   "accepted/fc82abcb-38c3-48b2-8818-d40ed84cfa35.json",
   "accepted/fce9c4f2-8043-4789-bb22-4f5cbf2a1833.json",
-  "accepted/fd38da37-c2b7-4bd0-a285-904d82b49b10.json"
+  "accepted/fd38da37-c2b7-4bd0-a285-904d82b49b10.json",
+  "accepted/gha-20260630-074904-28428795521.json",
+  "accepted/gha-20260630-113524-28441264288.json",
+  "accepted/gha-20260630-133014-28448071062.json",
+  "accepted/gha-20260630-174533-28464444351.json",
+  "accepted/gha-20260630-180233-28465451350.json",
+  "accepted/gha-20260630-181548-28466242878.json"
 ]
