@@ -232,7 +232,7 @@ def make_incoming_entry(item: dict[str, Any]) -> dict[str, Any]:
     return normalize_entry(entry)
 
 
-def merge_item(provider: dict[str, dict[str, Any]], item: dict[str, Any], report: dict[str, Any]) -> None:
+def merge_item(provider: dict[str, Any], item: dict[str, Any], report: dict[str, Any]) -> None:
     item_id = as_id(item.get("id"))
     incoming_entry = make_incoming_entry(item)
     incoming_key = incoming_entry["key"]
@@ -241,12 +241,13 @@ def merge_item(provider: dict[str, dict[str, Any]], item: dict[str, Any], report
     incoming_parent_appid = incoming_entry.get("parent_appid", "")
     incoming_parent_name = incoming_entry.get("parent_name", "")
 
-    if item_id not in provider or not isinstance(provider.get(item_id), dict):
+    if item_id not in provider:
         provider[item_id] = incoming_entry
         report["new_entries"] += 1
         return
 
-    entry = normalize_entry(provider[item_id])
+    raw_existing = provider.get(item_id)
+    entry = normalize_entry(raw_existing)
     old_key = normalize_key(entry.get("key", ""))
 
     if not old_key:
@@ -263,7 +264,9 @@ def merge_item(provider: dict[str, dict[str, Any]], item: dict[str, Any], report
                 "name": incoming_name,
             }
         )
-        provider[item_id] = entry
+
+        # Preserve old legacy string entry on conflict.
+        provider[item_id] = raw_existing if isinstance(raw_existing, str) else entry
         return
 
     # Accepted verifier metadata is allowed to fix old provider metadata when the key matches.
