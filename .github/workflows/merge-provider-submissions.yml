@@ -47,6 +47,16 @@ jobs:
         env:
           STEAMIDRA_API_BASE: https://stea-provider-api.steamidra.workers.dev
           STEAMIDRA_ADMIN_TOKEN: ${{ secrets.STEAMIDRA_ADMIN_TOKEN }}
+
+          # This is NOT one-file-only.
+          # It means: merge this GHA verifier result and every newer GHA verifier result.
+          # Old UUID accepted/*.json files are ignored by the Python script.
+          # Old broken GHA test runs before this are ignored too.
+          STEAMIDRA_ACCEPTED_MIN_RUN_ID: gha-20260630-180233-28465451350
+
+          # Keep fallback_depotkeys.json in the old simple format:
+          # "depotid": "64hexkey"
+          STEAMIDRA_OUTPUT_LEGACY_STRINGS: "1"
         run: |
           python .github/scripts/merge_accepted_from_worker.py
 
