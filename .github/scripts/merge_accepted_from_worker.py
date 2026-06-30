@@ -9,8 +9,13 @@ from typing import Any
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
-API_BASE = os.environ.get("STEAMIDRA_API_BASE", "").strip()
-ADMIN_TOKEN = os.environ.get("STEAMIDRA_ADMIN_TOKEN", "").strip()
+DEFAULT_API_BASE = "https://stea-provider-api.steamidra.workers.dev"
+
+API_BASE = (os.environ.get("STEAMIDRA_API_BASE") or DEFAULT_API_BASE).strip().rstrip("/")
+ADMIN_TOKEN = (os.environ.get("STEAMIDRA_ADMIN_TOKEN") or "").strip()
+
+if not API_BASE.startswith(("http://", "https://")):
+    raise SystemExit(f"Bad STEAMIDRA_API_BASE: {API_BASE!r}")
 
 PROVIDER_FILE = Path("fallback_depotkeys.json")
 PROCESSED_LOG = Path("merged_submission_ids.json")
