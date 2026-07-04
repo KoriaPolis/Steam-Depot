@@ -1,59 +1,30 @@
 {
-  "started_at": 1783161671,
+  "started_at": 1783166547,
   "api_base": "https://stea-provider-api.steamidra.workers.dev",
   "accepted_min_run_id": "gha-20260630-180233-28465451350",
   "accepted_only_run_id": "",
   "max_item_id": 50000000,
-  "objects_seen_total": 38,
-  "objects_selected_gha": 38,
+  "objects_seen_total": 39,
+  "objects_selected_gha": 39,
   "objects_ignored_not_gha": 0,
   "objects_ignored_before_min": 0,
   "objects_ignored_not_exact": 0,
-  "objects_found": 38,
+  "objects_found": 39,
   "objects_processed": 1,
-  "objects_skipped_already_processed": 37,
+  "objects_skipped_already_processed": 38,
   "bad_submissions": [],
-  "items_seen": 2683,
-  "new_entries": 203,
-  "keys_or_metadata_filled": 210,
+  "items_seen": 1194,
+  "new_entries": 1,
+  "keys_or_metadata_filled": 5,
   "legacy_string_converted": 0,
-  "same_key_existing": 2272,
-  "existing_unchanged": 2266,
+  "same_key_existing": 1193,
+  "existing_unchanged": 1188,
   "bad_items_skipped": 0,
   "high_id_items_skipped": 0,
   "existing_unrecognized_preserved": 0,
-  "conflicts": [
-    {
-      "id": "3029930",
-      "existing": "1a03a204932687a95ab1eac9a789c108f1057cf2fca670a8a59c14235b56c461",
-      "new": "89a87f623a9a557f3058ce612fa0df407580cd9e09b9e89dd94d2611b8bb3ceb",
-      "name": "My Demonic Romance - Supporter Pack - Depot 3029930",
-      "kind": "game"
-    },
-    {
-      "id": "49520",
-      "existing": "0330ed6fcd52923b3590f41847090ff93669f663b1bb20b6e4882a61b499413c",
-      "new": "0000000000000000000000000000000000000000000000000000000000000000",
-      "name": "Depot 49520",
-      "kind": "depot"
-    },
-    {
-      "id": "812140",
-      "existing": "a3ae6196e6418b650f1dc3be61564d5a6eb35222d212bd25d3caf8c6d51bdeb7",
-      "new": "0000000000000000000000000000000000000000000000000000000000000000",
-      "name": "Depot 812140",
-      "kind": "depot"
-    },
-    {
-      "id": "1588550",
-      "existing": "9fdaabf80001d2f849f78555b34c5634ca0aa6ab5c89c74050d230fd44572ea8",
-      "new": "0000000000000000000000000000000000000000000000000000000000000000",
-      "name": "Depot 1588550",
-      "kind": "depot"
-    }
-  ],
+  "conflicts": [],
   "bad_items": [],
-  "provider_count_before": 363166,
-  "provider_count_after": 363369,
+  "provider_count_before": 363369,
+  "provider_count_after": 363370,
   "provider_changed": true
 }
