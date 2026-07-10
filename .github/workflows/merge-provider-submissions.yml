@@ -29,6 +29,8 @@ jobs:
     steps:
       - name: Checkout provider repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -88,7 +90,10 @@ jobs:
           fi
 
       - name: Commit provider changes
+        shell: bash
         run: |
+          set -e
+
           git config user.name "SteaMidra Provider Bot"
           git config user.email "actions@users.noreply.github.com"
 
@@ -96,10 +101,27 @@ jobs:
 
           if git diff --cached --quiet; then
             echo "No provider changes to commit."
-          else
-            git commit -m "Merge accepted provider submissions"
-            git push
+            exit 0
           fi
+
+          git commit -m "Merge accepted provider submissions"
+
+          for attempt in 1 2 3; do
+            echo "Push attempt ${attempt}"
+
+            git pull --rebase origin main
+
+            if git push origin main; then
+              echo "Push succeeded."
+              exit 0
+            fi
+
+            echo "Push failed, retrying..."
+            sleep 3
+          done
+
+          echo "Push failed after 3 attempts."
+          exit 1
 
       - name: Upload updated provider to Cloudflare R2 fallback
         env:
