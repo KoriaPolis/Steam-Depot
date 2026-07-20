@@ -1,45 +1,30 @@
 {
-  "started_at": 1784581413,
+  "started_at": 1784584202,
   "api_base": "https://stea-provider-api.steamidra.workers.dev",
   "accepted_min_run_id": "gha-20260630-180233-28465451350",
   "accepted_only_run_id": "",
   "max_item_id": 50000000,
-  "objects_seen_total": 232,
-  "objects_selected_gha": 232,
+  "objects_seen_total": 233,
+  "objects_selected_gha": 233,
   "objects_ignored_not_gha": 0,
   "objects_ignored_before_min": 0,
   "objects_ignored_not_exact": 0,
-  "objects_found": 232,
+  "objects_found": 233,
   "objects_processed": 1,
-  "objects_skipped_already_processed": 231,
+  "objects_skipped_already_processed": 232,
   "bad_submissions": [],
-  "items_seen": 4592,
-  "new_entries": 11,
-  "keys_or_metadata_filled": 6,
+  "items_seen": 45,
+  "new_entries": 0,
+  "keys_or_metadata_filled": 0,
   "legacy_string_converted": 0,
-  "same_key_existing": 4573,
-  "existing_unchanged": 4573,
+  "same_key_existing": 45,
+  "existing_unchanged": 45,
   "bad_items_skipped": 0,
   "high_id_items_skipped": 0,
   "existing_unrecognized_preserved": 0,
-  "conflicts": [
-    {
-      "id": "2283871",
-      "existing": "68f4d851e884831b161b7abf0fd5498e2a1bcd68318e91882a2a3457e68d817a",
-      "new": "f8189daf891e2783c001ef929169afd4b673312efa35c4a76ca38c8f5cd308cc",
-      "name": "Depot 2283871",
-      "kind": "depot"
-    },
-    {
-      "id": "4394810",
-      "existing": "3c8afacd8366ec6d0872b9f95be7bcc55784514c88e92d69b2b5ead5228bd9c8",
-      "new": "ce700da5762e56b089453223d437b355b58433869cb2fab565b0c6c0837d87e2",
-      "name": "Depot 4394810",
-      "kind": "dlc_depot"
-    }
-  ],
+  "conflicts": [],
   "bad_items": [],
-  "provider_count_before": 364137,
+  "provider_count_before": 364148,
   "provider_count_after": 364148,
-  "provider_changed": true
+  "provider_changed": false
 }
