@@ -1,45 +1,38 @@
 {
-  "started_at": 1786125834,
+  "started_at": 1786126417,
   "api_base": "https://stea-provider-api.steamidra.workers.dev",
   "accepted_min_run_id": "gha-20260630-180233-28465451350",
   "accepted_only_run_id": "",
   "max_item_id": 50000000,
-  "objects_seen_total": 436,
-  "objects_selected_gha": 436,
+  "objects_seen_total": 437,
+  "objects_selected_gha": 437,
   "objects_ignored_not_gha": 0,
   "objects_ignored_before_min": 0,
   "objects_ignored_not_exact": 0,
-  "objects_found": 436,
+  "objects_found": 437,
   "objects_processed": 1,
-  "objects_skipped_already_processed": 435,
+  "objects_skipped_already_processed": 436,
   "bad_submissions": [],
-  "items_seen": 16728,
-  "new_entries": 202,
-  "keys_or_metadata_filled": 156,
+  "items_seen": 8863,
+  "new_entries": 0,
+  "keys_or_metadata_filled": 0,
   "legacy_string_converted": 0,
-  "same_key_existing": 16451,
-  "existing_unchanged": 16368,
+  "same_key_existing": 8862,
+  "existing_unchanged": 8862,
   "bad_items_skipped": 0,
   "high_id_items_skipped": 0,
   "existing_unrecognized_preserved": 0,
   "conflicts": [
     {
-      "id": "3419431",
-      "existing": "ad41f244684b3ba8f8462a3b365e80a6a35012eeafa998c96664f5efc1497c0f",
-      "new": "fb239f2c3972710fe40b5a2d113ee3816b69145aabb95b60bc45aab1634a4047",
-      "name": "Depot 3419431",
-      "kind": "depot"
-    },
-    {
       "id": "2215430",
       "existing": "0000000000000000000000000000000000000000000000000000000000000000",
       "new": "3d8bf68294a58b019329cd13f8fbd8d0e695a1645ec1d08cc3a3408ffe070853",
-      "name": "Depot 2215430",
-      "kind": "depot"
+      "name": "Ghost of Tsushima DIRECTOR'S CUT",
+      "kind": "game"
     }
   ],
   "bad_items": [],
-  "provider_count_before": 364951,
+  "provider_count_before": 365153,
   "provider_count_after": 365153,
-  "provider_changed": true
+  "provider_changed": false
 }
