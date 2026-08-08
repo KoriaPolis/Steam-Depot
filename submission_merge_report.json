@@ -1,24 +1,24 @@
 {
-  "started_at": 1786200692,
+  "started_at": 1786201387,
   "api_base": "https://stea-provider-api.steamidra.workers.dev",
   "accepted_min_run_id": "gha-20260630-180233-28465451350",
   "accepted_only_run_id": "",
   "max_item_id": 50000000,
-  "objects_seen_total": 455,
-  "objects_selected_gha": 455,
+  "objects_seen_total": 456,
+  "objects_selected_gha": 456,
   "objects_ignored_not_gha": 0,
   "objects_ignored_before_min": 0,
   "objects_ignored_not_exact": 0,
-  "objects_found": 455,
+  "objects_found": 456,
   "objects_processed": 1,
-  "objects_skipped_already_processed": 454,
+  "objects_skipped_already_processed": 455,
   "bad_submissions": [],
-  "items_seen": 13187,
-  "new_entries": 146,
-  "keys_or_metadata_filled": 87,
+  "items_seen": 4787,
+  "new_entries": 0,
+  "keys_or_metadata_filled": 0,
   "legacy_string_converted": 0,
-  "same_key_existing": 12994,
-  "existing_unchanged": 12951,
+  "same_key_existing": 4786,
+  "existing_unchanged": 4786,
   "bad_items_skipped": 0,
   "high_id_items_skipped": 0,
   "existing_unrecognized_preserved": 0,
@@ -28,25 +28,11 @@
       "existing": "0000000000000000000000000000000000000000000000000000000000000000",
       "new": "3d8bf68294a58b019329cd13f8fbd8d0e695a1645ec1d08cc3a3408ffe070853",
       "name": "Ghost of Tsushima DIRECTOR'S CUT",
-      "kind": "depot"
-    },
-    {
-      "id": "229631",
-      "existing": "1d5f2f41d6041f72b150c752b7ecf1ddd7d9db77a0c983831b6803105ebd962c",
-      "new": "65e75d906613ce658af73b8db0772cf9f6fa3905427161dd1c0482572da72c0d",
-      "name": "Depot 229631",
-      "kind": "depot"
-    },
-    {
-      "id": "229632",
-      "existing": "31b56ec2f11495352b66ad07ea9df0f95cadec7a23235f6779c25899d192d306",
-      "new": "65e75d906613ce658af73b8db0772cf9f6fa3905427161dd1c0482572da72c0d",
-      "name": "Depot 229632",
-      "kind": "depot"
+      "kind": "game"
     }
   ],
   "bad_items": [],
-  "provider_count_before": 366235,
+  "provider_count_before": 366381,
   "provider_count_after": 366381,
-  "provider_changed": true
+  "provider_changed": false
 }
