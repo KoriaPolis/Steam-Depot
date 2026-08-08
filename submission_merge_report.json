@@ -1,30 +1,52 @@
 {
-  "started_at": 1786176405,
+  "started_at": 1786182971,
   "api_base": "https://stea-provider-api.steamidra.workers.dev",
   "accepted_min_run_id": "gha-20260630-180233-28465451350",
   "accepted_only_run_id": "",
   "max_item_id": 50000000,
-  "objects_seen_total": 448,
-  "objects_selected_gha": 448,
+  "objects_seen_total": 449,
+  "objects_selected_gha": 449,
   "objects_ignored_not_gha": 0,
   "objects_ignored_before_min": 0,
   "objects_ignored_not_exact": 0,
-  "objects_found": 448,
+  "objects_found": 449,
   "objects_processed": 1,
-  "objects_skipped_already_processed": 447,
+  "objects_skipped_already_processed": 448,
   "bad_submissions": [],
-  "items_seen": 7794,
-  "new_entries": 0,
-  "keys_or_metadata_filled": 0,
+  "items_seen": 11967,
+  "new_entries": 40,
+  "keys_or_metadata_filled": 27,
   "legacy_string_converted": 0,
-  "same_key_existing": 7794,
-  "existing_unchanged": 7794,
+  "same_key_existing": 11901,
+  "existing_unchanged": 11897,
   "bad_items_skipped": 0,
   "high_id_items_skipped": 0,
   "existing_unrecognized_preserved": 0,
-  "conflicts": [],
+  "conflicts": [
+    {
+      "id": "2215430",
+      "existing": "0000000000000000000000000000000000000000000000000000000000000000",
+      "new": "3d8bf68294a58b019329cd13f8fbd8d0e695a1645ec1d08cc3a3408ffe070853",
+      "name": "Ghost of Tsushima DIRECTOR'S CUT",
+      "kind": "depot"
+    },
+    {
+      "id": "1857952",
+      "existing": "0f09efc4c8566ce587f3329874cc02f750a58ad24fa6d30c8154b1b95cf2f050",
+      "new": "cd8bd502bab629ae4c436ea94afeb2370b50ec2cc8919f583bc3989b20b46edc",
+      "name": "App 1857952",
+      "kind": "game"
+    },
+    {
+      "id": "532791",
+      "existing": "5031e75920df33014e680cad671ff0895f9e439d33eedb5b5878aa407d5cb177",
+      "new": "78d5a284965b2206de191dc4ca99d43c9caf5b5e78b47cf0c366fbbb884190d8",
+      "name": "Depot 532791",
+      "kind": "depot"
+    }
+  ],
   "bad_items": [],
   "provider_count_before": 366161,
-  "provider_count_after": 366161,
-  "provider_changed": false
+  "provider_count_after": 366201,
+  "provider_changed": true
 }
