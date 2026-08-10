@@ -1,40 +1,33 @@
 {
-  "started_at": 1786370923,
+  "started_at": 1786375138,
   "api_base": "https://stea-provider-api.steamidra.workers.dev",
   "accepted_min_run_id": "gha-20260630-180233-28465451350",
   "accepted_only_run_id": "",
   "max_item_id": 50000000,
-  "objects_seen_total": 502,
-  "objects_selected_gha": 502,
+  "objects_seen_total": 503,
+  "objects_selected_gha": 503,
   "objects_ignored_not_gha": 0,
   "objects_ignored_before_min": 0,
   "objects_ignored_not_exact": 0,
-  "objects_found": 502,
+  "objects_found": 503,
   "objects_processed": 1,
-  "objects_skipped_already_processed": 501,
+  "objects_skipped_already_processed": 502,
   "bad_submissions": [],
-  "items_seen": 14458,
-  "new_entries": 9,
+  "items_seen": 5194,
+  "new_entries": 60,
   "keys_or_metadata_filled": 21,
   "legacy_string_converted": 0,
-  "same_key_existing": 14428,
-  "existing_unchanged": 14422,
+  "same_key_existing": 5120,
+  "existing_unchanged": 5109,
   "bad_items_skipped": 0,
   "high_id_items_skipped": 0,
   "existing_unrecognized_preserved": 0,
   "conflicts": [
     {
-      "id": "12121",
-      "existing": "d89825855fd6f4b802378b6110effadaea8db612d89de6cf00f75dc92f898bf0",
-      "new": "0000000000000000000000000000000000000000000000000000000000000000",
-      "name": "Depot 12121",
-      "kind": "depot"
-    },
-    {
-      "id": "3419431",
-      "existing": "ad41f244684b3ba8f8462a3b365e80a6a35012eeafa998c96664f5efc1497c0f",
-      "new": "fb239f2c3972710fe40b5a2d113ee3816b69145aabb95b60bc45aab1634a4047",
-      "name": "Depot 3419431",
+      "id": "4352440",
+      "existing": "907f06c4ef85efe46f7525e1d5c3ac58d890dec642b8471d94da4ac4b99f8547",
+      "new": "70db506f113d788bb48aa27187fbc4114f4cbc70d2b5ed531cc98ea5a017d0bd",
+      "name": "Rift of the NecroDancer Omega Strikers Music Pack - Depot 4352440",
       "kind": "depot"
     },
     {
@@ -42,32 +35,25 @@
       "existing": "3c8afacd8366ec6d0872b9f95be7bcc55784514c88e92d69b2b5ead5228bd9c8",
       "new": "ce700da5762e56b089453223d437b355b58433869cb2fab565b0c6c0837d87e2",
       "name": "Depot 4394810",
+      "kind": "dlc_depot"
+    },
+    {
+      "id": "1661510",
+      "existing": "3b0bbba37bc2344b50b45628c42ff3630493891e02033f08e2685cae58bd5025",
+      "new": "1a0b01597bb7bee21e52e95410ef03297fdac95a31f31d8bf4b66c2896312691",
+      "name": "Depot 1661510",
       "kind": "depot"
     },
     {
-      "id": "4348800",
-      "existing": "df5f2f04b2da14360ec44a1038cead463089b72d6a30612b25bf3449558ceb5b",
-      "new": "7a50ecd61b8eab6ba2e8010e2267305f059334a7aaa006174de5fe7af36af9ff",
-      "name": "Depot 4348800",
-      "kind": "depot"
-    },
-    {
-      "id": "4651570",
-      "existing": "01db07db648105515fd656c7dba1789dab4308b0faeeb1c1ab9b69d3376cbd6e",
-      "new": "032b8d74bf5fb219023587fa1f8aee8fbb1fc7b10e97fc023889418dd76e1459",
-      "name": "Depot 4651570",
-      "kind": "depot"
-    },
-    {
-      "id": "3357650",
-      "existing": "18e75bfb3f8c26b7a59d9e3a7013e74e1c59fe563aa00ee15f54a35b17691766",
-      "new": "7d3fd8efe5fba21ded0c274905926cc56b6a26da1060d76462721945a8ef328a",
-      "name": "PRAGMATA",
+      "id": "1819730",
+      "existing": "cbc09f7954f55951558302e805ab8494e23dcbccf3662c22f22fdfea2bc0b1aa",
+      "new": "536d5d068d4fbe0d3510a011947e86372027bfeb6c988b6bd7e935e27d890695",
+      "name": "Depot 1819730",
       "kind": "depot"
     }
   ],
   "bad_items": [],
-  "provider_count_before": 367254,
-  "provider_count_after": 367263,
+  "provider_count_before": 367263,
+  "provider_count_after": 367323,
   "provider_changed": true
 }
