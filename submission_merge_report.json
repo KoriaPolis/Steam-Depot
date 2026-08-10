@@ -1,59 +1,38 @@
 {
-  "started_at": 1786375138,
+  "started_at": 1786380665,
   "api_base": "https://stea-provider-api.steamidra.workers.dev",
   "accepted_min_run_id": "gha-20260630-180233-28465451350",
   "accepted_only_run_id": "",
   "max_item_id": 50000000,
-  "objects_seen_total": 503,
-  "objects_selected_gha": 503,
+  "objects_seen_total": 504,
+  "objects_selected_gha": 504,
   "objects_ignored_not_gha": 0,
   "objects_ignored_before_min": 0,
   "objects_ignored_not_exact": 0,
-  "objects_found": 503,
+  "objects_found": 504,
   "objects_processed": 1,
-  "objects_skipped_already_processed": 502,
+  "objects_skipped_already_processed": 503,
   "bad_submissions": [],
-  "items_seen": 5194,
-  "new_entries": 60,
-  "keys_or_metadata_filled": 21,
+  "items_seen": 5366,
+  "new_entries": 15,
+  "keys_or_metadata_filled": 7,
   "legacy_string_converted": 0,
-  "same_key_existing": 5120,
-  "existing_unchanged": 5109,
+  "same_key_existing": 5346,
+  "existing_unchanged": 5343,
   "bad_items_skipped": 0,
   "high_id_items_skipped": 0,
   "existing_unrecognized_preserved": 0,
   "conflicts": [
     {
-      "id": "4352440",
-      "existing": "907f06c4ef85efe46f7525e1d5c3ac58d890dec642b8471d94da4ac4b99f8547",
-      "new": "70db506f113d788bb48aa27187fbc4114f4cbc70d2b5ed531cc98ea5a017d0bd",
-      "name": "Rift of the NecroDancer Omega Strikers Music Pack - Depot 4352440",
-      "kind": "depot"
-    },
-    {
-      "id": "4394810",
-      "existing": "3c8afacd8366ec6d0872b9f95be7bcc55784514c88e92d69b2b5ead5228bd9c8",
-      "new": "ce700da5762e56b089453223d437b355b58433869cb2fab565b0c6c0837d87e2",
-      "name": "Depot 4394810",
-      "kind": "dlc_depot"
-    },
-    {
-      "id": "1661510",
-      "existing": "3b0bbba37bc2344b50b45628c42ff3630493891e02033f08e2685cae58bd5025",
-      "new": "1a0b01597bb7bee21e52e95410ef03297fdac95a31f31d8bf4b66c2896312691",
-      "name": "Depot 1661510",
-      "kind": "depot"
-    },
-    {
-      "id": "1819730",
-      "existing": "cbc09f7954f55951558302e805ab8494e23dcbccf3662c22f22fdfea2bc0b1aa",
-      "new": "536d5d068d4fbe0d3510a011947e86372027bfeb6c988b6bd7e935e27d890695",
-      "name": "Depot 1819730",
-      "kind": "depot"
+      "id": "2215430",
+      "existing": "0000000000000000000000000000000000000000000000000000000000000000",
+      "new": "3d8bf68294a58b019329cd13f8fbd8d0e695a1645ec1d08cc3a3408ffe070853",
+      "name": "Ghost of Tsushima DIRECTOR'S CUT",
+      "kind": "game"
     }
   ],
   "bad_items": [],
-  "provider_count_before": 367263,
-  "provider_count_after": 367323,
+  "provider_count_before": 367323,
+  "provider_count_after": 367338,
   "provider_changed": true
 }
