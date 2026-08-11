@@ -1,25 +1,25 @@
 {
-  "started_at": 1786430286,
+  "started_at": 1786431562,
   "api_base": "https://stea-provider-api.steamidra.workers.dev",
   "accepted_min_run_id": "gha-20260630-180233-28465451350",
   "accepted_only_run_id": "",
   "max_item_id": 50000000,
-  "objects_seen_total": 515,
-  "objects_selected_gha": 515,
+  "objects_seen_total": 516,
+  "objects_selected_gha": 516,
   "objects_ignored_not_gha": 0,
   "objects_ignored_before_min": 0,
   "objects_ignored_not_exact": 0,
-  "objects_found": 515,
+  "objects_found": 516,
   "objects_processed": 1,
-  "objects_skipped_already_processed": 514,
+  "objects_skipped_already_processed": 515,
   "bad_submissions": [],
-  "items_seen": 9340,
-  "new_entries": 9,
-  "keys_or_metadata_filled": 7,
+  "items_seen": 7093,
+  "new_entries": 0,
+  "keys_or_metadata_filled": 0,
   "legacy_string_converted": 0,
-  "same_key_existing": 9323,
-  "existing_unchanged": 9322,
-  "bad_items_skipped": 2,
+  "same_key_existing": 7092,
+  "existing_unchanged": 7092,
+  "bad_items_skipped": 1,
   "high_id_items_skipped": 0,
   "existing_unrecognized_preserved": 0,
   "conflicts": [],
@@ -27,13 +27,9 @@
     {
       "id": "2215430",
       "error": "2215430: bad key"
-    },
-    {
-      "id": "4657571",
-      "error": "4657571: bad key"
     }
   ],
-  "provider_count_before": 367425,
+  "provider_count_before": 367434,
   "provider_count_after": 367434,
-  "provider_changed": true
+  "provider_changed": false
 }
