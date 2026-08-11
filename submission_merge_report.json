@@ -1,30 +1,73 @@
 {
-  "started_at": 1786451476,
+  "started_at": 1786459581,
   "api_base": "https://stea-provider-api.steamidra.workers.dev",
   "accepted_min_run_id": "gha-20260630-180233-28465451350",
   "accepted_only_run_id": "",
   "max_item_id": 50000000,
-  "objects_seen_total": 521,
-  "objects_selected_gha": 521,
+  "objects_seen_total": 522,
+  "objects_selected_gha": 522,
   "objects_ignored_not_gha": 0,
   "objects_ignored_before_min": 0,
   "objects_ignored_not_exact": 0,
-  "objects_found": 521,
+  "objects_found": 522,
   "objects_processed": 1,
-  "objects_skipped_already_processed": 520,
+  "objects_skipped_already_processed": 521,
   "bad_submissions": [],
-  "items_seen": 4246,
-  "new_entries": 0,
-  "keys_or_metadata_filled": 1,
+  "items_seen": 20485,
+  "new_entries": 8,
+  "keys_or_metadata_filled": 134,
   "legacy_string_converted": 0,
-  "same_key_existing": 4245,
-  "existing_unchanged": 4245,
-  "bad_items_skipped": 0,
+  "same_key_existing": 20462,
+  "existing_unchanged": 20335,
+  "bad_items_skipped": 5,
   "high_id_items_skipped": 0,
   "existing_unrecognized_preserved": 0,
-  "conflicts": [],
-  "bad_items": [],
+  "conflicts": [
+    {
+      "id": "229631",
+      "existing": "1d5f2f41d6041f72b150c752b7ecf1ddd7d9db77a0c983831b6803105ebd962c",
+      "new": "65e75d906613ce658af73b8db0772cf9f6fa3905427161dd1c0482572da72c0d",
+      "name": "Depot 229631",
+      "kind": "depot"
+    },
+    {
+      "id": "229632",
+      "existing": "31b56ec2f11495352b66ad07ea9df0f95cadec7a23235f6779c25899d192d306",
+      "new": "65e75d906613ce658af73b8db0772cf9f6fa3905427161dd1c0482572da72c0d",
+      "name": "Depot 229632",
+      "kind": "depot"
+    },
+    {
+      "id": "4352440",
+      "existing": "907f06c4ef85efe46f7525e1d5c3ac58d890dec642b8471d94da4ac4b99f8547",
+      "new": "70db506f113d788bb48aa27187fbc4114f4cbc70d2b5ed531cc98ea5a017d0bd",
+      "name": "Rift of the NecroDancer Omega Strikers Music Pack - Depot 4352440",
+      "kind": "depot"
+    }
+  ],
+  "bad_items": [
+    {
+      "id": "2215430",
+      "error": "2215430: bad key"
+    },
+    {
+      "id": "1115431",
+      "error": "1115431: bad key"
+    },
+    {
+      "id": "210801",
+      "error": "210801: bad key"
+    },
+    {
+      "id": "2721601",
+      "error": "2721601: bad key"
+    },
+    {
+      "id": "3411271",
+      "error": "3411271: bad key"
+    }
+  ],
   "provider_count_before": 367448,
-  "provider_count_after": 367448,
+  "provider_count_after": 367456,
   "provider_changed": true
 }
