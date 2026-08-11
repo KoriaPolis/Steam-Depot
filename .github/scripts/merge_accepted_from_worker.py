@@ -100,7 +100,7 @@ def normalize_key(value: Any) -> str:
         return ""
 
     value = value.strip().lower()
-    return value if KEY_RE.fullmatch(value) else ""
+    return value if KEY_RE.fullmatch(value) and value.strip("0") != "" else ""
 
 
 def clean_text(value: Any, max_len: int = MAX_TEXT_LEN) -> str:
