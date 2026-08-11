@@ -1,35 +1,67 @@
 {
-  "started_at": 1786467680,
+  "started_at": 1786473543,
   "api_base": "https://stea-provider-api.steamidra.workers.dev",
   "accepted_min_run_id": "gha-20260630-180233-28465451350",
   "accepted_only_run_id": "",
   "max_item_id": 50000000,
-  "objects_seen_total": 525,
-  "objects_selected_gha": 525,
+  "objects_seen_total": 526,
+  "objects_selected_gha": 526,
   "objects_ignored_not_gha": 0,
   "objects_ignored_before_min": 0,
   "objects_ignored_not_exact": 0,
-  "objects_found": 525,
+  "objects_found": 526,
   "objects_processed": 1,
-  "objects_skipped_already_processed": 524,
+  "objects_skipped_already_processed": 525,
   "bad_submissions": [],
-  "items_seen": 17916,
-  "new_entries": 0,
-  "keys_or_metadata_filled": 0,
+  "items_seen": 16167,
+  "new_entries": 10,
+  "keys_or_metadata_filled": 94,
   "legacy_string_converted": 0,
-  "same_key_existing": 17915,
-  "existing_unchanged": 17915,
-  "bad_items_skipped": 1,
+  "same_key_existing": 16141,
+  "existing_unchanged": 16055,
+  "bad_items_skipped": 7,
   "high_id_items_skipped": 0,
   "existing_unrecognized_preserved": 0,
-  "conflicts": [],
+  "conflicts": [
+    {
+      "id": "3419431",
+      "existing": "ad41f244684b3ba8f8462a3b365e80a6a35012eeafa998c96664f5efc1497c0f",
+      "new": "fb239f2c3972710fe40b5a2d113ee3816b69145aabb95b60bc45aab1634a4047",
+      "name": "Depot 3419431",
+      "kind": "depot"
+    }
+  ],
   "bad_items": [
     {
-      "id": "2215430",
-      "error": "2215430: bad key"
+      "id": "1151401",
+      "error": "1151401: bad key"
+    },
+    {
+      "id": "1594412",
+      "error": "1594412: bad key"
+    },
+    {
+      "id": "37457513",
+      "error": "37457513: bad key"
+    },
+    {
+      "id": "4080221",
+      "error": "4080221: bad key"
+    },
+    {
+      "id": "4657571",
+      "error": "4657571: bad key"
+    },
+    {
+      "id": "2230041",
+      "error": "2230041: bad key"
+    },
+    {
+      "id": "4729962",
+      "error": "4729962: bad key"
     }
   ],
   "provider_count_before": 367470,
-  "provider_count_after": 367470,
-  "provider_changed": false
+  "provider_count_after": 367480,
+  "provider_changed": true
 }
