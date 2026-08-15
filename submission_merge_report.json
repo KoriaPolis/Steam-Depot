@@ -1,35 +1,52 @@
 {
-  "started_at": 1786821049,
+  "started_at": 1786823898,
   "api_base": "https://stea-provider-api.steamidra.workers.dev",
   "accepted_min_run_id": "gha-20260630-180233-28465451350",
   "accepted_only_run_id": "",
   "max_item_id": 50000000,
-  "objects_seen_total": 619,
-  "objects_selected_gha": 619,
+  "objects_seen_total": 620,
+  "objects_selected_gha": 620,
   "objects_ignored_not_gha": 0,
   "objects_ignored_before_min": 0,
   "objects_ignored_not_exact": 0,
-  "objects_found": 619,
+  "objects_found": 620,
   "objects_processed": 1,
-  "objects_skipped_already_processed": 618,
+  "objects_skipped_already_processed": 619,
   "bad_submissions": [],
-  "items_seen": 2885,
-  "new_entries": 3,
-  "keys_or_metadata_filled": 6,
+  "items_seen": 8866,
+  "new_entries": 121,
+  "keys_or_metadata_filled": 138,
   "legacy_string_converted": 0,
-  "same_key_existing": 2875,
-  "existing_unchanged": 2875,
-  "bad_items_skipped": 1,
+  "same_key_existing": 8658,
+  "existing_unchanged": 8604,
+  "bad_items_skipped": 0,
   "high_id_items_skipped": 0,
   "existing_unrecognized_preserved": 0,
-  "conflicts": [],
-  "bad_items": [
+  "conflicts": [
     {
-      "id": "2215430",
-      "error": "2215430: bad key"
+      "id": "2473120",
+      "existing": "9f6ac4db531848ea7d51cd02597bb7b06c347b48d364c8e5ad22039314393d7a",
+      "new": "c693f917c6c7f2d76f3cdf68107fcac4f8eb7f74a0fdb1b8eaf050e35a4a6549",
+      "name": "Depot 2473120",
+      "kind": "depot"
+    },
+    {
+      "id": "2473121",
+      "existing": "fe7031829b6066c50276bd75f06ba9cbe3b97595a9767aff42585dcafe796945",
+      "new": "4615991748e966aa2d6c37761f5f9dd6e6e067d9a224a6aca2bb8dc41faeec77",
+      "name": "Depot 2473121",
+      "kind": "depot"
+    },
+    {
+      "id": "2897760",
+      "existing": "7389a2c9d5eb3e5f06dc2d9ee37ed9979eec1e027cb308273e2ea1ee29bc569f",
+      "new": "d309294d9f28f61bc9fd632ec2133bc496ef6fb2c353ef57e9af630ea77ac693",
+      "name": "Depot 2897760",
+      "kind": "depot"
     }
   ],
-  "provider_count_before": 368227,
-  "provider_count_after": 368230,
+  "bad_items": [],
+  "provider_count_before": 368230,
+  "provider_count_after": 368351,
   "provider_changed": true
 }
