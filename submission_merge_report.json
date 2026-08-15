@@ -1,43 +1,30 @@
 {
-  "started_at": 1786767611,
+  "started_at": 1786770108,
   "api_base": "https://stea-provider-api.steamidra.workers.dev",
   "accepted_min_run_id": "gha-20260630-180233-28465451350",
   "accepted_only_run_id": "",
   "max_item_id": 50000000,
-  "objects_seen_total": 594,
-  "objects_selected_gha": 594,
+  "objects_seen_total": 595,
+  "objects_selected_gha": 595,
   "objects_ignored_not_gha": 0,
   "objects_ignored_before_min": 0,
   "objects_ignored_not_exact": 0,
-  "objects_found": 594,
+  "objects_found": 595,
   "objects_processed": 1,
-  "objects_skipped_already_processed": 593,
+  "objects_skipped_already_processed": 594,
   "bad_submissions": [],
-  "items_seen": 2305,
-  "new_entries": 0,
+  "items_seen": 1474,
+  "new_entries": 2,
   "keys_or_metadata_filled": 0,
   "legacy_string_converted": 0,
-  "same_key_existing": 2303,
-  "existing_unchanged": 2303,
-  "bad_items_skipped": 1,
+  "same_key_existing": 1472,
+  "existing_unchanged": 1472,
+  "bad_items_skipped": 0,
   "high_id_items_skipped": 0,
   "existing_unrecognized_preserved": 0,
-  "conflicts": [
-    {
-      "id": "4394810",
-      "existing": "3c8afacd8366ec6d0872b9f95be7bcc55784514c88e92d69b2b5ead5228bd9c8",
-      "new": "ce700da5762e56b089453223d437b355b58433869cb2fab565b0c6c0837d87e2",
-      "name": "(windows)",
-      "kind": "game"
-    }
-  ],
-  "bad_items": [
-    {
-      "id": "2215430",
-      "error": "2215430: bad key"
-    }
-  ],
+  "conflicts": [],
+  "bad_items": [],
   "provider_count_before": 368145,
-  "provider_count_after": 368145,
-  "provider_changed": false
+  "provider_count_after": 368147,
+  "provider_changed": true
 }
